@@ -59,7 +59,10 @@ see [Updating](../README.md#updating).
 On Debian and Ubuntu the wizard installs a missing `curl`, `jq`, `openssl` and
 `python3` by itself.
 
-The wizard asks a few questions and performs the whole initial setup:
+The wizard asks its questions first (in menus: arrow keys or the item's
+number, then Enter), so the long part afterwards runs without anybody watching.
+Only Hermes' own model wizard comes after the download, because it runs from
+the image. Then it performs the whole initial setup:
 
 1. the Webapp domain → `instance/.env`,
 2. user, data directories, the server's private key,
@@ -75,6 +78,11 @@ the stack is restarted when something was added. The questions can be
 answered in advance with the `SETUP_*` variables (see the header of
 `setup.sh`), in which case it runs without prompting; step 4 needs a terminal
 and is skipped without one.
+
+Each long step shows one progress line. What the commands print goes to
+`/var/log/hermes-box-setup.log`; when a step fails, its last lines are shown.
+`--verbose` (for `get.sh` and `setup.sh`) shows everything as it runs, and
+`--yes` (`get.sh`) skips the question before the installation starts.
 
 After the installation, store the private key
 (`/etc/hermes/credentials/age.key`) and the `instance/` directory off the

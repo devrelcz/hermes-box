@@ -79,6 +79,7 @@ COPY deploy /opt/hermes-box/deploy
 COPY docs /opt/hermes-box/docs
 COPY docker /opt/hermes-box/docker
 COPY instance.example /opt/hermes-box/instance.example
+COPY lib /opt/hermes-box/lib
 COPY monitor /opt/hermes-box/monitor
 COPY server /opt/hermes-box/server
 COPY skin /opt/hermes-box/skin

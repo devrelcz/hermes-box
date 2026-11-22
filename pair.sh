@@ -38,8 +38,8 @@ for arg in "$@"; do
   esac
 done
 
-say()  { printf '\n==> %s\n' "$*"; }
-note() { printf '    %s\n' "$*"; }
+# shellcheck source=lib/ui.sh
+. "$REPO_DIR/lib/ui.sh"
 die()  { printf 'pair: %s\n' "$*" >&2; exit 1; }
 
 env_get() { sed -n "s/^$1=//p" instance/.env 2>/dev/null | tail -n1; }
@@ -107,8 +107,10 @@ else
   note "This sets a new Webapp password for '$user' and restarts the stack."
   note "The current password stops working and every signed-in device is signed out."
   if [ "$confirmed" -eq 0 ]; then
-    read -r -p "    Continue? (yes/no) [no]: " answer </dev/tty
-    case "$answer" in y|Y|yes|YES|ano|a) ;; *) die "nothing was changed" ;; esac
+    choose PAIR_CONFIRM "Set a new password?" no \
+      yes "Yes — a new password and a QR code" \
+      no "No — keep the current one"
+    [ "$CHOICE" = yes ] || die "nothing was changed"
   fi
   while :; do
     read -r -s -p "    New password, at least 12 characters (Enter makes a random one): " password </dev/tty; echo
@@ -119,7 +121,7 @@ else
     fi
     read -r -s -p "    Once more: " again </dev/tty; echo
     [ "$password" = "$again" ] && [ "${#password}" -ge 12 ] && break
-    echo "    the passwords differ or are too short"
+    warn "the passwords differ or are too short"
   done
   unset again
 

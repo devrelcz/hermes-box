@@ -31,7 +31,7 @@ jobs:
       - name: Check the scripts
         run: |
           shellcheck --severity=error \
-            get.sh install.sh setup.sh pair.sh check.sh sops.sh \
+            get.sh install.sh setup.sh pair.sh check.sh sops.sh lib/ui.sh \
             backup/*.sh monitor/*.sh deploy/*.sh docker/*.sh
 
       - name: Name and version
@@ -78,7 +78,7 @@ jobs:
           # What an installation gets out of it.
           out="$(mktemp -d)"
           docker run --rm --network none -v "$out:/out" --entrypoint hermes-box-extract "$IMAGE:$VERSION"
-          for file in compose.yaml install.sh setup.sh pair.sh check.sh sops.sh release.env \
+          for file in compose.yaml install.sh setup.sh pair.sh check.sh sops.sh lib/ui.sh release.env \
                       backup/hermes-backup.sh monitor/hermes-monitor.sh server/hermes-docker.service \
                       caddy/Caddyfile instance.example/env.example docs/installation.md; do
             test -s "$out/$file" || { echo "missing in the image: $file"; exit 1; }

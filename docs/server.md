@@ -85,6 +85,7 @@ Three things that are not obvious at first sight:
 | --- | --- |
 | `get.sh` | one-command installation: Docker, the files from the image, then `setup.sh` |
 | `setup.sh` | first-installation wizard |
+| `lib/ui.sh` | what the wizard shows: progress lines, menus (used by `setup.sh` and `pair.sh`) |
 | `pair.sh` | QR code that signs the mobile app in; sets a new Webapp password |
 | `install.sh` | installation and deployment of changes |
 | `compose.yaml` | definition of the containers |

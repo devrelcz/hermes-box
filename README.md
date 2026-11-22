@@ -24,15 +24,19 @@ like any other name.
 curl -fsSL https://raw.githubusercontent.com/devrelcz/hermes-box/master/get.sh | sudo bash
 ```
 
-The script installs Docker when it is missing, downloads the image (several
-GB) and starts a wizard. The wizard asks for:
+The script first says what it is about to do and what it puts on the server,
+and asks before it changes anything. Then it installs Docker when it is
+missing, downloads the image (several GB) and asks, in menus you move through
+with the arrow keys:
 
-1. the host name of the Webapp,
-2. the model and its provider,
-3. a user name and password for the Webapp.
+1. the host name of the Webapp (or `<address>.sslip.io` without a domain),
+2. a user name and password for the Webapp,
+3. whether to choose the model now (Hermes' own wizard, after the download).
 
 Then it starts everything, runs the first backup and checks the result. The
-Webapp is at `https://<your host name>`.
+Webapp is at `https://<your host name>`. The long steps show a single progress
+line; their output is in `/var/log/hermes-box-setup.log`, and `--verbose`
+(`... | sudo bash -s -- --verbose`) shows it as it runs.
 
 Two things to do right after the installation:
 
