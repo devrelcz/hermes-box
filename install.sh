@@ -204,7 +204,7 @@ if [ "$prepare" -eq 1 ]; then
 fi
 
 [ -f instance/secrets/hermes.enc.yaml ] ||
-  die "instance/secrets/hermes.enc.yaml is missing. Create it with ./sops.sh secrets/hermes.enc.yaml (one NAME: value per line); see README, Secrets."
+  die "instance/secrets/hermes.enc.yaml is missing. Create it with ./sops.sh secrets/hermes.enc.yaml (one NAME: value per line); see docs/secrets.md."
 for file in instance/secrets/*.enc.yaml; do
   if ! tool -e SOPS_AGE_KEY_FILE=/age.key -v "$KEY_FILE:/age.key:ro" -v "$REPO_DIR/instance/secrets:/instance/secrets:ro" \
        --entrypoint sops "$IMAGE" decrypt "/$file" >/dev/null 2>&1; then
@@ -294,7 +294,7 @@ else
 fi
 
 # The Webapp on a phone: larger controls, as CSS in a skin that Hermes reads
-# from the data directory (README, Look of the Webapp). The Webapp picks a
+# from the data directory (docs/server.md, Look of the Webapp). The Webapp picks a
 # change up on the next page load. A default.yaml without the marker in its
 # first line is somebody's own and is left alone.
 skin="$DATA_DIR/.hermes/skins/default.yaml"

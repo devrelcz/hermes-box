@@ -4,7 +4,7 @@
 #
 # The Hermes version is pinned here, so that every build of one commit gives
 # the same agent. To upgrade Hermes, change the tag of the "pinned" stage below
-# (see README, Releasing a new version); Dependabot opens a pull request for
+# (see docs/installation.md, Releasing a new version); Dependabot opens a pull request for
 # it when Hermes publishes a new one, which is why the tag is written out in a
 # FROM line of its own. It is the -desktop variant: the same Hermes plus the
 # packages for Bot Desktop (Xvnc, Xfce), so that a bot can have a screen of
@@ -76,6 +76,7 @@ COPY compose.yaml install.sh setup.sh pair.sh check.sh sops.sh Dockerfile README
 COPY backup /opt/hermes-box/backup
 COPY caddy /opt/hermes-box/caddy
 COPY deploy /opt/hermes-box/deploy
+COPY docs /opt/hermes-box/docs
 COPY docker /opt/hermes-box/docker
 COPY instance.example /opt/hermes-box/instance.example
 COPY monitor /opt/hermes-box/monitor

@@ -80,7 +80,7 @@ jobs:
           docker run --rm --network none -v "$out:/out" --entrypoint hermes-box-extract "$IMAGE:$VERSION"
           for file in compose.yaml install.sh setup.sh pair.sh check.sh sops.sh release.env \
                       backup/hermes-backup.sh monitor/hermes-monitor.sh server/hermes-docker.service \
-                      caddy/Caddyfile instance.example/env.example; do
+                      caddy/Caddyfile instance.example/env.example docs/installation.md; do
             test -s "$out/$file" || { echo "missing in the image: $file"; exit 1; }
           done
           test -x "$out/setup.sh" && test -x "$out/pair.sh"
