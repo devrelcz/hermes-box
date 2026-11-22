@@ -72,7 +72,7 @@ COPY --chmod=0755 docker/secrets-entrypoint.sh /usr/local/bin/secrets-entrypoint
 # needs nothing but this image: docker/extract.sh copies them to the host.
 # Only what is listed here goes in; instance/ never does (see .dockerignore).
 COPY --chmod=0755 docker/extract.sh /usr/local/bin/hermes-box-extract
-COPY compose.yaml install.sh setup.sh check.sh sops.sh Dockerfile README.md LICENSE /opt/hermes-box/
+COPY compose.yaml install.sh setup.sh pair.sh check.sh sops.sh Dockerfile README.md LICENSE /opt/hermes-box/
 COPY backup /opt/hermes-box/backup
 COPY caddy /opt/hermes-box/caddy
 COPY deploy /opt/hermes-box/deploy
