@@ -1,140 +1,75 @@
 # Hermes Agent in Docker
 
-Runs [Hermes Agent](https://github.com/NousResearch/hermes-agent) on a server
-in Docker: the agent with cron, the Webapp (Hermes Desktop in the browser,
-including Bots) on your own domain, and a daily backup.
+Runs [Hermes Agent](https://github.com/NousResearch/hermes-agent) on your own
+server: the agent with its cron jobs, the Webapp (Hermes Desktop in a browser,
+including Bots) on your domain, and a daily backup.
 
-The installation is one command on an empty server. The host ends up with
-only Docker and one private key; no third-party service for secrets is
-required.
+One command installs it on an empty server. The server ends up with Docker
+and one private key; the secrets are encrypted files, so no outside service
+holds them.
 
-The solution is split into two parts:
+## What you need
 
-- **this repository** – the same for every installation, contains nothing
-  personal,
-- **the `instance/` directory** – the settings and encrypted secrets of one
-  installation, and anything else only that installation runs: containers of
-  its own, checks, the way alerts are delivered (see
-  [Your own additions](#your-own-additions)). It is not part of this
-  repository; a template and description are in
-  [`instance.example/`](instance.example/README.md).
+- A Linux server (x86_64, with systemd) and root on it.
+- A domain that points at the server, with ports 80 and 443 open.
+- 4 GB of RAM (with swap) and 40 GB of disk.
 
-## Installation
+No domain yet? Use `<address>.sslip.io` as the host name, for example
+`203.0.113.7.sslip.io`. It resolves to that address and gets a certificate
+like any other name.
 
-You need a server with Linux (x86_64, with systemd), a domain pointing at its
-address, and ports 80 and 443 open. Everything is run as root.
-
-Size: the image is about 5 GB, Firecrawl's images about 6 GB, and a fresh
-installation takes about 15 GB of disk; an update needs room for a second
-image for a while, so plan for 40 GB or more. When idle, the agent's container
-uses about 250 MB of memory and Firecrawl about 2 GB. 4 GB of RAM is a
-sensible minimum, and with that little the server needs swap.
-
-To try it out without a domain of your own, use `<address>.sslip.io` as the
-host name, for example `203.0.113.7.sslip.io`: it resolves to that address and
-gets a certificate like any other name.
-
-### New installation
-
-One command, on a server with nothing installed:
+## Install
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/devrelcz/hermes-box/master/get.sh | sudo bash
 ```
 
-[`get.sh`](get.sh) installs Docker when it is missing (with Docker's own
-script, <https://get.docker.com>, which covers Debian, Ubuntu, Fedora, CentOS
-and RHEL), pulls the published image, extracts `compose.yaml`, the scripts and
-the systemd units from it into `/opt/hermes-box` and starts the wizard.
-Nothing is built or cloned. Run again on a server that is already installed,
-it only starts the wizard again.
+The script installs Docker when it is missing, downloads the image (several
+GB) and starts a wizard. The wizard asks for:
 
-Another release or directory is chosen through the environment, and the
-wizard's answers can be given the same way, which makes the installation
-unattended:
+1. the host name of the Webapp,
+2. the model and its provider,
+3. a user name and password for the Webapp.
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/devrelcz/hermes-box/master/get.sh | sudo INSTALL_IMAGE=ghcr.io/devrelcz/hermes-box:1.0.0 SETUP_DOMAIN=agent.example.com bash
-```
+Then it starts everything, runs the first backup and checks the result. The
+Webapp is at `https://<your host name>`.
 
-The same by hand, when Docker is already there and you would rather not pipe
-a script into a shell:
+Two things to do right after the installation:
 
-```bash
-docker run --rm -v /opt/hermes-box:/out --entrypoint hermes-box-extract ghcr.io/devrelcz/hermes-box:1
-```
+- Copy the private key `/etc/hermes/credentials/age.key` off the server, for
+  example into a password manager. Without it the secrets and the backups
+  cannot be read.
+- Keep the directory `/opt/hermes-box/instance/` off the server too, best as
+  a private git repository. It holds this installation's settings and
+  encrypted secrets.
 
-```bash
-cd /opt/hermes-box && ./setup.sh
-```
+The wizard can be run again at any time (`cd /opt/hermes-box && ./setup.sh`);
+it skips what is already done. For an unattended installation, an
+installation without piping a script into a shell, or one from git, see
+[Installation in detail](docs/installation.md).
 
-The `:1` tag is the latest release of the 1 series. The installation remembers
-the exact version it received (`release.env`) and does not change by itself;
-see [Updating](#updating).
+## Mobile app
 
-On Debian and Ubuntu the wizard installs a missing `curl`, `jq`, `openssl` and
-`python3` by itself.
-
-The wizard asks a few questions and performs the whole initial setup:
-
-1. the Webapp domain → `instance/.env`,
-2. user, data directories, the server's private key,
-3. the first encrypted secrets, including a random backup password,
-4. model and provider: runs Hermes's own wizard,
-5. Webapp login: a user name and password,
-6. installation of the services, start, first backup and check,
-7. a QR code that signs the [mobile app](#mobile-app) in.
-
-It can be run again, also on a server that is already running; finished
-steps are skipped. This is how the model or the Webapp login is added later;
-the stack is restarted when something was added. The questions can be
-answered in advance with the `SETUP_*` variables (see the header of
-`setup.sh`), in which case it runs without prompting; step 4 needs a terminal
-and is skipped without one.
-
-After the installation, store the private key
-(`/etc/hermes/credentials/age.key`) and the `instance/` directory off the
-server, ideally as a private git repository.
-
-### Mobile app
-
-[Hermes Hobs](https://github.com/devrelcz/hermes-hobs) signs in to the Webapp
-with the same user name and password as the browser. Instead of typing them
-on a phone, scan a QR code: it carries the server's address, the user name and
-the password.
-
-`setup.sh` offers the code at the end of a first installation, for the
-password chosen there. Later:
+[Hermes Hobs](https://github.com/devrelcz/hermes-hobs) signs in with the same
+user name and password as the browser. Instead of typing them on a phone,
+scan a QR code. The wizard offers the code at the end of the installation.
+Later:
 
 ```bash
 cd /opt/hermes-box && ./pair.sh
 ```
 
-Only a hash of the password is stored, so the current one cannot be shown
-again: `pair.sh` sets a new password (your own, or a random one it prints),
-restarts the stack and shows the code for it. The old password stops working,
-in the browser too, and every signed-in device has to sign in again. That is
-also what to do about a lost phone.
+`pair.sh` sets a new Webapp password, because the server stores only a hash
+of the current one and cannot show it again. The old password stops working,
+in the browser too, and every signed-in device has to sign in again. Run it
+also when a phone is lost.
 
-The code is the password in readable form. It is drawn on a terminal only,
-never in an unattended run, and wiped from the screen once you confirm the
-scan. Do not screenshot it. What it holds:
+The code is the password in readable form. Do not screenshot it.
 
-```json
-{"v":1,"url":"https://agent.example.com","user":"admin","password":"..."}
-```
+## Model and provider
 
-### Model and provider
-
-Until a model is chosen the agent does not answer; `./check.sh` says so in a
-`warn` line. An installation that skipped step 4 (an unattended one always
-does) gets its model by running the wizard again in a terminal:
-
-```bash
-cd /opt/hermes-box && ./setup.sh
-```
-
-The same without the wizard around it, for example to change the model later:
+Until a model is chosen, the agent does not answer; `./check.sh` says so. To
+choose one, or to change it later:
 
 ```bash
 docker exec -it -u 1000:1000 -e HOME=/opt/data hermes hermes setup model
@@ -147,567 +82,74 @@ systemctl restart hermes-docker
 Use `hermes setup model`, not `hermes setup`: the full Hermes setup asks about
 much more than the model.
 
-### Existing installation, restore, another server
+## Everyday commands
 
-Extract the files from the image as for a new installation, clone your
-instance repository into `/opt/hermes-box/instance/` and run:
-
-```bash
-./install.sh
-```
-
-The script checks the prerequisites, creates the user and directories, pulls or
-builds the image, verifies the key and secrets, configures the Webapp and the browser in
-`config.yaml`, installs the systemd units and starts the stack. It can be run
-repeatedly; it does not change existing data. It leaves a running stack alone
-unless it is given `--restart`. On a new server it creates a key and prints its
-public part; that has to be added to the recipients of the secrets (see
-Secrets).
-
-### Settings in `instance/.env`
-
-| Variable | Default | Meaning |
-| --- | --- | --- |
-| `HERMES_DOMAIN` | – | public address of the Webapp; DNS must point at the server |
-| `SOPS_AGE_KEY_FILE` | `/etc/hermes/credentials/age.key` | the server's private key |
-| `BACKUP_EXTRA_PATHS` | empty | further paths in the data directory to back up, separated by spaces |
-| `AUTO_DEPLOY` | off | `true`: the server deploys new commits by itself |
-| `HERMES_DATA_DIR` | `/home/hermes` | where all state lives |
-| `HERMES_UID`, `HERMES_GID` | `1000` | owner of the data |
-| `HERMES_BOX_IMAGE` | from `release.env` | an image other than the one the installation came with |
-| `HERMES_IMAGE_TAG` | the version in the `Dockerfile` | only when building yourself: another Hermes version, e.g. `v0.23.3` for an image without Bot Desktop |
-
-The `.env` file in the root is only a link to `instance/.env`, created by
-`install.sh`.
-
-### Deploying a change
-
-This applies to an installation from git (see
-[Installing from git](#installing-from-git)); an installation from the image is
-changed as described in [Updating](#updating).
-
-**Automatically** (`AUTO_DEPLOY=true` in `instance/.env`): a `git push` is
-enough, whether to this repository or to the instance repository. Every
-5 minutes the server checks the remote branch and deploys a new commit by
-itself (`deploy/hermes-deploy.sh`):
-
-1. it fetches the commit (fast-forward only), validates the configuration, and
-   if needed builds the image and updates the units,
-2. it restarts the stack only when something that runs in the containers has
-   changed (`compose.yaml`, `Dockerfile`, `docker/`, `caddy/`, `instance/.env`,
-   `instance/compose.yaml`, `instance/secrets/`); it waits until no cron job
-   is about to start,
-3. it runs `check.sh`; if that fails, it rolls back to the previous commit and
-   image,
-4. it writes the result to the journal (`journalctl -u hermes-deploy`) and
-   hands it to `instance/notify.sh`, if there is one.
-
-A commit whose deployment failed is not retried; fix it with a new commit.
-To retry the same one: `rm /var/lib/hermes-deploy/failed-commit`.
-
-Two builds of the image are kept: the running one and the one before it, for
-the rollback. Older builds, and a build that was rolled back, are removed after
-each build, because each takes several GB and `check.sh` fails a deploy once
-the disk is 85% full.
-
-To run it immediately without waiting for the timer:
-`systemctl start hermes-deploy`.
-
-To pause the automation, for example during manual work on the server:
-
-```bash
-touch deploy/PAUSE
-```
-
-Whoever can push to the deployed branch runs code on the server as root.
-Protect the branch on GitHub and keep two-factor authentication on the account.
-
-**Manually:**
-
-```bash
-git pull --ff-only && ./install.sh --restart
-```
-
-A restart means about a minute of downtime, including the web.
-Without `--restart` only the image is built and the units are updated.
-
-## What runs
-
-Seven containers. The first two use the `host` network mode:
-
-| Container | Image | What it does | Where it listens |
-| --- | --- | --- | --- |
-| `hermes` | `ghcr.io/devrelcz/hermes-box:<version>`, or `hermes-agent-local` built from the `Dockerfile` | gateway: agent, cron, sessions, Bots; plus the Webapp and dashboard | Webapp `127.0.0.1:9120`, dashboard `127.0.0.1:9119` |
-| `hermes-caddy` | `caddy:2.11` | TLS and reverse proxy | `80`, `443` |
-| `hermes-firecrawl` and four `hermes-firecrawl-*` (Playwright, Redis, RabbitMQ, Postgres) | see `compose.yaml` | web search and page reading for the agent | API `127.0.0.1:3002`; the rest only on a network of their own |
-
-- The **Webapp** runs at `https://<HERMES_DOMAIN>` behind a login with
-  the user name and password chosen during setup.
-- The **Dashboard** (administration) is not exposed. Access it through an SSH
-  tunnel:
-
-  ```bash
-  ssh -L 9119:127.0.0.1:9119 <server>
-  ```
-
-  and then <http://127.0.0.1:9119>.
-
-The containers are started by the systemd unit `hermes-docker.service` with
-`docker compose up`. The `hermes` container has `restart: on-failure:5`, so
-Docker brings it back up after a crash.
-
-## Your own additions
-
-What only your installation needs does not belong in this repository. Put it
-in `instance/`; these four places are picked up when they exist:
-
-| In `instance/` | What it does |
-| --- | --- |
-| `compose.yaml` | more containers, or changes to the ones here. `install.sh` links it as `compose.override.yaml`, which Compose merges into `compose.yaml`. Paths are relative to the repository directory; variables come from `instance/.env`. Apply with `./install.sh --restart`. |
-| `check.d/*.sh` | one more line in `./check.sh` per script, named after the file: it passes when the script exits 0, and the last line the script printed is shown when it fails. The scripts get `REPO_DIR` and `DATA_DIR`. |
-| `notify.sh` | delivery of alerts. Must be executable; gets the message as its only argument. Called by the monitor and by the automatic deployment. |
-| `BACKUP_EXTRA_PATHS` in `.env` | paths inside the data directory to add to the backup, for example the state of your own container. |
-
-A messenger daemon the gateway talks to is a typical case: its container goes
-into `instance/compose.yaml`, a check that it answers into `instance/check.d/`,
-its data into `BACKUP_EXTRA_PATHS`, and `instance/notify.sh` can send the
-alerts through it. Create the directory for its data yourself, owned by
-`HERMES_UID`; Docker would create a missing one as root.
-
-Everything in `instance/` runs as root on the server, like this repository.
-
-## Web and browser
-
-The agent has two ways to the web, and they are set separately in
-`config.yaml`:
-
-- **`web_search` and `web_extract`** go through a backend. Here that is the
-  Firecrawl on this server, for both; see below. Another backend can be
-  chosen for either half. Some only search (`brave-free`, `ddgs`, `searxng`)
-  and cannot read a page; reading needs one that also extracts (`firecrawl`,
-  `tavily`, `exa`, `parallel`):
-
-  ```bash
-  docker exec -u 1000:1000 -e HOME=/opt/data hermes hermes config set web.search_backend brave-free
-  ```
-
-  The keys of such a backend (`BRAVE_SEARCH_API_KEY`, `TAVILY_API_KEY`, …)
-  belong in `secrets/hermes.enc.yaml`; see [Secrets](#secrets).
-- **The browser** is the Chromium that the Hermes image ships; nothing else
-  has to be installed. `install.sh` sets `browser.cloud_provider: local`
-  unless a provider is already chosen, and enables the `browser` and
-  `terminal` toolsets for cron jobs (the browser tool is offered only together
-  with the terminal). A cron job that lists its own `enabled_toolsets` has to
-  name both. Other platforms are set with
-  `hermes tools enable browser --platform <name>`.
-
-### Firecrawl on this server
-
-Searching and reading pages need no account: a Firecrawl runs here, in five
-containers (API, Playwright, Redis, RabbitMQ, Postgres), and `compose.yaml`
-gives the agent its address (`FIRECRAWL_API_URL`). `install.sh` sets
-`web.backend: firecrawl` in `config.yaml`, which makes it the backend for both
-halves; what it cannot read is left to the browser. `web.search_backend` and
-`web.extract_backend` take precedence over `web.backend` and are not touched,
-so a different choice for one half goes there. Hermes installs its Firecrawl
-client into the data directory the first time the agent uses it. `check.sh`
-watches the five containers and the API. To try it on the server:
-
-```bash
-curl -s -X POST http://127.0.0.1:3002/v2/scrape -H 'Content-Type: application/json' -d '{"url":"https://example.com","formats":["markdown"]}'
-```
-
-The API has no authentication, which is why it listens on loopback only.
-Nothing in it is worth backing up: its two volumes hold a job queue. While
-Firecrawl does not answer, Hermes reads pages through the free tiers of public
-services instead (`web.keyless_rescue`, on by default; `false` keeps the
-requests on this server and lets them fail). The versions are pinned in
-`compose.yaml`; the Playwright and Postgres images are published without
-version numbers, so they are pinned to a build and updated by hand together
-with the API.
-
-The browser is slower and costs more tokens than `web_extract`; it is for
-pages that need JavaScript or a sign-in.
-
-## A screen for a bot (Bot Desktop)
-
-A bot can have a desktop of its own, with a browser that keeps its profile
-between runs. You watch it in the Webapp and can take the keyboard and mouse
-over, for example to sign in to a site that wants a person; the session then
-stays in the bot's browser profile, and cron jobs of that bot use it.
-
-The image has what this needs (Xvnc, Xfce, Chromium); nothing is installed on
-the server. In the Webapp: **Bots**, right-click a bot, **Open Screen**,
-**Start screen**, then **Take over** and, when done, **Hand back**. From a
-shell:
-
-```bash
-docker exec -u 1000:1000 -e HOME=/opt/data hermes hermes computer-use screen status
-```
-
-- A screen is started only on request and stops after 30 minutes without use
-  (`bot_desktop.idle_stop_minutes`). With a browser open it takes 1 to 1.5 GB
-  of memory, and Hermes does not start one with less than about 1.5 GB free
-  (`bot_desktop.min_free_memory_mb`).
-- No port is opened. The picture goes over the Webapp's own connection, behind
-  its sign-in; Xvnc listens on a socket in the data directory only.
-- The bot's desktop state and browser profile are in `bot-desktop/` in the
-  data directory, and so in the backup.
-
-## Look of the Webapp
-
-The Webapp is Hermes Desktop in a browser, and many of its controls are sized
-for a mouse. `skin/default.yaml` makes them larger on a phone or tablet:
-buttons, the entries of the left panel and of menus, form fields, the status
-bar and the text of a conversation. `install.sh` copies it to
-`<data>/.hermes/skins/default.yaml`; Hermes puts the `customCSS` of that file
-into the page, and the Webapp picks a change up on the next page load.
-
-- All rules sit in one media query for touch screens; with a mouse nothing
-  changes.
-- The skin is named `default`, so it keeps the colours of Hermes and applies
-  without any setting. It applies while the Webapp uses its default theme; a
-  different theme chosen in the Webapp's settings does not carry it.
-- To change the look, edit `skin/default.yaml` and deploy. Only CSS is
-  possible, up to 32 KiB.
-- To keep a `default.yaml` of your own on the server, remove its first line
-  (`# hermes-box: managed …`); `install.sh` then leaves the file alone.
-- The selectors follow the Webapp of the pinned Hermes version. After
-  [upgrading Hermes](#releasing-a-new-version), open the Webapp on a phone
-  and check that the controls are still large.
-
-## Files
-
-| File | Purpose |
-| --- | --- |
-| `get.sh` | one-command installation: Docker, the files from the image, then `setup.sh` |
-| `setup.sh` | first-installation wizard |
-| `pair.sh` | QR code that signs the mobile app in; sets a new Webapp password |
-| `install.sh` | installation and deployment of changes |
-| `compose.yaml` | definition of the containers |
-| `Dockerfile` | the official Hermes image + `sops`, `age`, `uv` and `himalaya`; also carries the files in this table |
-| `docker/extract.sh` | extracts the files from the image onto the server (`hermes-box-extract`) |
-| `release.env` | only for an installation from the image: which image is running |
-| `.github/workflows/image.yml` | image build and check, release on a `v*` tag |
-| `docker/secrets-entrypoint.sh` | on start, decrypts the secrets into the environment and into in-memory files |
-| `sops.sh` | editing secrets without installing `sops` |
-| `instance.example/` | template of the `instance/` directory |
-| `sops.sh` | `sops` from Docker, for editing secrets without an installation |
-| `caddy/Caddyfile` | domain → Webapp |
-| `skin/default.yaml` | CSS for the Webapp on touch screens; see [Look of the Webapp](#look-of-the-webapp) |
-| `backup/hermes-backup.sh` | daily backup |
-| `check.sh` | health check of the whole solution |
-| `monitor/hermes-monitor.sh` | periodic check and alerts |
-| `deploy/hermes-deploy.sh` | automatic deployment of new commits |
-| `server/` | systemd unit templates; installed by `install.sh` |
-
-## Data
-
-All state is in `HERMES_DATA_DIR`. The image is stateless.
-
-| Path in the data directory | Contents | In the `hermes` container |
-| --- | --- | --- |
-| `.hermes` | config, sessions, cron, skills, profiles, `state.db` | `/opt/data` and `/home/hermes/.hermes` |
-| `openknowledge` | Obsidian repository | `/home/hermes/openknowledge` |
-| `projects` | projects | `/home/hermes/projects` |
-| `.config/himalaya` | mail settings (the passwords are in the secrets) | `/opt/data/.config/himalaya` |
-| `.local/bin` | the agent's helper scripts, e.g. an SSH wrapper for git | `/home/hermes/.local/bin` |
-| `backups` | backups | not mounted |
-
-Outside the data directory:
-
-- the repository including `instance/`
-- the server's private key
-- the Docker volumes `hermes_caddy-data` and `hermes_caddy-config` –
-  certificates; if lost, they are issued again
-
-Three things that are not obvious at first sight:
-
-- Cron jobs and skills refer to the absolute paths `/home/hermes/...`. Inside
-  the container these paths therefore stay the same wherever `HERMES_DATA_DIR`
-  is. The `write_file` and `patch` tools may write only into the directories in
-  `HERMES_WRITE_SAFE_ROOT`. The image allows only `/opt/data`, which is why
-  `compose.yaml` also adds mounts under `/home/hermes/...`. A new writable
-  mount has to be added there as well.
-- The home directory of the tools in the container is `/opt/data`
-  (`terminal.home_mode: real` in `config.yaml`; set by `install.sh`).
-  The value in `config.yaml` takes precedence over the `TERMINAL_HOME_MODE`
-  variable from `compose.yaml`. With the default `auto`, scripts in the
-  container would get `HOME=/opt/data/home` and would not find
-  `~/.config/himalaya`. The path `~/.hermes/...` works thanks to the symlink
-  `.hermes/.hermes -> .`, created by `install.sh`. It also follows that
-  `~/.ssh` = `.hermes/.ssh`; `install.sh` carries `known_hosts` over there from
-  the original installation.
-- Both Docker and `hermes-docker.service` wait for the data disk to be mounted.
-  When the disk is missing, Docker does not start at all. This is intentional:
-  otherwise the containers would come up over empty directories.
-
-## Secrets
-
-They are in `instance/secrets/*.enc.yaml`, encrypted with
-[SOPS](https://getsops.io) for [age](https://age-encryption.org) keys. The
-names are readable, the values are not, so the files belong in git (in the
-instance repository). The commands below are run in the `instance/` directory;
-`./sops.sh` from the root of this repository works there by itself.
-
-- `secrets/hermes.enc.yaml` – everything the agent receives (mail passwords,
-  deploy keys, tokens). The `hermes` container decrypts the file into memory on
-  start; the values are neither on disk nor in `docker inspect`.
-  - A single-line value is the environment variable `NAME`.
-  - A multi-line value (SSH key, JSON) is the file
-    `/run/hermes-secrets/NAME`, readable only by the agent's user; the
-    environment holds only the path to it in `NAME_FILE`. Otherwise a
-    line-by-line listing of the environment (`printenv | cut -d= -f1`) would
-    print the second and following lines of such a value in full, and the agent
-    has already sent keys to the model provider this way.
-- `secrets/backup.enc.yaml` – `RESTIC_PASSWORD`. Only the backup script reads
-  it; the agent never receives it.
-
-Anyone whose public key is in `instance/.sops.yaml` can decrypt them: the
-server (private key in `/etc/hermes/credentials/age.key`) and whoever manages
-the secrets. Without the key or the file the container exits with code 78 and
-does not restart.
-
-**Keep a copy of at least one private key off the server**, for example in a
-password manager. Losing all the keys means losing the secrets and access to
-the backups.
-
-### Once, on your own computer
-
-```bash
-brew install sops age
-```
-
-On macOS `sops` looks for the key in
-`~/Library/Application Support/sops/age/keys.txt` (on Linux in
-`~/.config/sops/age/keys.txt`):
-
-```bash
-mkdir -p ~/Library/Application\ Support/sops/age && age-keygen -o ~/Library/Application\ Support/sops/age/keys.txt
-```
-
-A different location can be passed in the `SOPS_AGE_KEY_FILE` variable.
-
-Add the printed public key (`age1…`) to `.sops.yaml`. Only someone who can
-already decrypt the existing files can add it to their recipients (so the first
-time, the server).
-
-### Changing or adding a value
-
-```bash
-sops secrets/hermes.enc.yaml
-```
-
-This opens an editor with the decrypted contents and re-encrypts the file on
-save. Then commit, push, and on the server
-`git pull --ff-only && ./install.sh --restart`.
-
-### Without installing: `sops` from Docker
-
-`./sops.sh` runs `sops` from its official image, so Docker and the private key
-are enough. The arguments are the same as for `sops`; paths are written
-relative to the repository root:
-
-```bash
-./sops.sh secrets/hermes.enc.yaml
-```
-
-The editor is `vi`. The container runs without network access and the decrypted
-contents exist only inside it. The key is taken from `SOPS_AGE_KEY_FILE`,
-otherwise from the locations listed above. The script does not create a new
-key; that requires `age-keygen`.
-
-### New recipient (another server, another person)
-
-Add the public key to `.sops.yaml` and re-encrypt:
-
-```bash
-sops updatekeys secrets/hermes.enc.yaml
-```
-
-```bash
-sops updatekeys secrets/backup.enc.yaml
-```
-
-Removing a recipient works the same way; in addition, the values they have
-already seen need to be changed at their source.
-
-## Common tasks
+Run them as root in `/opt/hermes-box`.
 
 Check everything at once (services, containers, web, certificate, backup,
-disk space, your own checks); it exits with an error when something is wrong:
+disk space). It exits with an error when something is wrong:
 
 ```bash
 ./check.sh
 ```
 
-Status:
-
-```bash
-systemctl status hermes-docker
-```
-
-```bash
-docker ps
-```
-
-Agent logs (Docker keeps at most 5 × 20 MB per container; Hermes's own logs
-are in `.hermes/logs`):
+Agent logs:
 
 ```bash
 docker logs -f --tail 100 hermes
 ```
 
-Restart the whole stack:
+Restart everything (about a minute of downtime):
 
 ```bash
 systemctl restart hermes-docker
 ```
 
-The `hermes` command inside the container, as the agent's user:
+Add or change a secret the agent receives, such as an API key or a mail
+password:
+
+```bash
+SOPS_AGE_KEY_FILE=/etc/hermes/credentials/age.key ./sops.sh secrets/hermes.enc.yaml
+```
+
+```bash
+./install.sh --restart
+```
+
+The `hermes` command inside the container:
 
 ```bash
 docker exec -it -u 1000:1000 -e HOME=/opt/data hermes hermes --help
 ```
 
-Without a subcommand, and without a model, `hermes` offers to run its full
-setup; decline and see [Model and provider](#model-and-provider).
-
-## Monitoring
-
-`hermes-monitor.timer` runs `check.sh` every 10 minutes, and immediately after
-a failed backup. When the result changes, it writes that to the journal
-(`journalctl -u hermes-monitor`): one message when something breaks, and one
-when everything is fine again.
-
-To be told somewhere else, add `instance/notify.sh` (see
-[Your own additions](#your-own-additions)). Whatever that script uses, it runs
-on this server: when the whole server is down, nothing arrives; only an
-external check of the public address covers that (UptimeRobot and the like).
-
 ## Updating
-
-A new version is a new image. In one command:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/devrelcz/hermes-box/master/get.sh | sudo bash -s -- --update
 ```
 
-Or by hand: extract the files from it over the existing ones and deploy:
+This fetches the latest release and restarts the stack. Your settings and
+data stay as they are. Run a backup first: `systemctl start hermes-backup`.
 
-```bash
-docker run --rm -v /opt/hermes-box:/out --entrypoint hermes-box-extract ghcr.io/devrelcz/hermes-box:1
-```
-
-```bash
-cd /opt/hermes-box && ./install.sh --restart
-```
-
-Neither `instance/` nor the data changes. It is a good idea to run a backup
-before updating (`systemctl start hermes-backup`).
-
-Going back to a previous version is the same with its exact tag, e.g. `:1.0.0`.
-Which version is running: `cat /opt/hermes-box/release.env`.
-
-## Installing from git
-
-For development, and for a server that should follow a branch: clone the
-repository instead of extracting it from the image. Without `release.env`,
-`install.sh` builds the image itself from the `Dockerfile` (named
-`hermes-agent-local`) and `AUTO_DEPLOY` can be enabled.
-
-```bash
-git clone https://github.com/devrelcz/hermes-box.git /opt/hermes-box
-```
-
-```bash
-cd /opt/hermes-box && ./setup.sh
-```
-
-## Releasing a new version
-
-The Hermes version is pinned in the `Dockerfile` (the `pinned` stage).
-Upgrading Hermes is a change of that tag; CI builds and tests the image in
-every pull request, so a version the `Dockerfile` does not fit will not pass.
-Dependabot (`.github/dependabot.yml`) checks daily and opens that pull request
-when Hermes publishes a new version; merging it and releasing stay manual.
-
-A release is a tag of the form `v1.2.3`:
-
-```bash
-git tag v1.2.3 && git push origin v1.2.3
-```
-
-CI publishes `ghcr.io/devrelcz/hermes-box:1.2.3` and moves `:1.2` and `:1`.
-A tag with a suffix (`v1.2.3-rc.1`) publishes only itself.
-
+Which version is running: `cat /opt/hermes-box/release.env`. To go back to an
+earlier one, or to update by hand, see
+[Installation in detail](docs/installation.md#updating-by-hand).
 
 ## Backup
 
-`hermes-backup.timer` runs `backup/hermes-backup.sh` daily at 03:30:
+A backup runs daily at 03:30 and keeps 7 daily, 4 weekly and 3 monthly
+snapshots. It is stored on the same disk as the data: it protects against
+deletion and a broken database, not against losing the disk. Restoring files
+or a whole server is described in [Backup and restore](docs/backup.md).
 
-1. it copies all SQLite databases through the backup API (consistent even while
-   running),
-2. it stores them, together with the Hermes state, `BACKUP_EXTRA_PATHS`,
-   `openknowledge`, `projects`, the tool configuration and this repository
-   including `instance/` and the encrypted secrets, in the restic repository
-   `<data>/backups/restic-repo`,
-3. it keeps 7 daily, 4 weekly and 3 monthly snapshots and verifies the
-   repository.
+## More
 
-It leaves out everything Hermes can download or build again.
-
-Manual run and result:
-
-```bash
-systemctl start hermes-backup && journalctl -u hermes-backup -n 30 --no-pager
-```
-
-**Limitation:** the repository is on the same disk as the data. It protects
-against deletion, file corruption and a broken database, not against losing the
-disk. An off-server copy can be added with `restic copy`.
-
-The repository password is `RESTIC_PASSWORD` in
-`instance/secrets/backup.enc.yaml`. The server's private key is not in the
-backup.
-
-### Restoring files from a backup
-
-As root in the repository directory (paths for the default `HERMES_DATA_DIR`):
-
-```bash
-mkdir -p /restore
-```
-
-```bash
-export RESTIC_PASSWORD="$(docker run --rm --network none -e SOPS_AGE_KEY_FILE=/age.key -v /etc/hermes/credentials/age.key:/age.key:ro -v "$PWD/instance/secrets:/secrets:ro" --entrypoint sops "$(docker inspect -f '{{.Config.Image}}' hermes)" decrypt --extract '["RESTIC_PASSWORD"]' /secrets/backup.enc.yaml)"
-```
-
-```bash
-docker run --rm -e RESTIC_PASSWORD -e RESTIC_REPOSITORY=/repo -v /home/hermes/backups/restic-repo:/repo -v /restore:/restore restic/restic:0.18.1 restore latest --target /restore
-```
-
-Files are restored to `/restore/<original path>`, databases to
-`/restore/home/hermes/backups/sqlite-dump/<path in the data>`. For a snapshot
-other than the latest: instead of `latest`, use its ID from the `snapshots`
-command. Stop `hermes-docker` before copying anything back.
-
-## Restoring the server
-
-When the server is gone and the data disk survives:
-
-1. New server.
-2. Mount the data disk at `HERMES_DATA_DIR` and add it to `/etc/fstab`.
-   With a Hetzner Volume **do not run `mkfs`** from their instructions; it
-   would erase the data.
-3. Follow the Installation chapter; clone `instance/` from your repository or
-   take it from a backup. Either restore the private key from a copy to
-   `/etc/hermes/credentials/age.key`, or let `install.sh` create a new one and
-   add it to the recipients.
-4. Point DNS at the new address. Caddy issues the certificate by itself.
-
-When the data disk is gone too, the data is lost; see the backup limitation
-above.
+| Page | What is in it |
+| --- | --- |
+| [Installation in detail](docs/installation.md) | unattended and manual installation, settings in `instance/.env`, another server, installing from git, automatic deployment, releasing |
+| [What runs on the server](docs/server.md) | containers, data and files, your own containers and checks, alerts, web search and the browser, a screen for a bot, the look of the Webapp |
+| [Secrets](docs/secrets.md) | how secrets are encrypted, edited and shared with another person or server |
+| [Backup and restore](docs/backup.md) | what is backed up, restoring files, restoring the server |
 
 ## Licence
 

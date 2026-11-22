@@ -9,7 +9,7 @@
 # Everything is inside one media query, so a mouse-driven browser sees no
 # change. The selectors (data-size, data-slot, data-sidebar) come from the
 # Webapp of the Hermes version pinned in the Dockerfile; look at them again
-# after an upgrade (README, Look of the Webapp).
+# after an upgrade (docs/server.md, Look of the Webapp).
 name: default
 description: Hermes default, with larger controls on touch screens
 customCSS: |

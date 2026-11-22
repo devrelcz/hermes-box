@@ -121,8 +121,8 @@ services:
 
   # ── Firecrawl ──────────────────────────────────────────────────────────────
   # Searches the web and reads pages for the agent's web_search and
-  # web_extract, on this server and without an API key (see README, Web and
-  # browser). Five containers on a network of their own.
+  # web_extract, on this server and without an API key (see docs/server.md, Web
+  # and browser). Five containers on a network of their own.
   # They follow Firecrawl's own docker-compose.yaml, with published images
   # instead of a build and smaller limits: one agent, not a crawling service.
   # The API has no authentication, so it is published on loopback only.
