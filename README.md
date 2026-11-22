@@ -82,7 +82,8 @@ The wizard asks a few questions and performs the whole initial setup:
 3. the first encrypted secrets, including a random backup password,
 4. model and provider: runs Hermes's own wizard,
 5. Webapp login: a user name and password,
-6. installation of the services, start, first backup and check.
+6. installation of the services, start, first backup and check,
+7. a QR code that signs the [mobile app](#mobile-app) in.
 
 It can be run again, also on a server that is already running; finished
 steps are skipped. This is how the model or the Webapp login is added later;
@@ -94,6 +95,34 @@ and is skipped without one.
 After the installation, store the private key
 (`/etc/hermes/credentials/age.key`) and the `instance/` directory off the
 server, ideally as a private git repository.
+
+### Mobile app
+
+[Hermes Hobs](https://github.com/devrelcz/hermes-hobs) signs in to the Webapp
+with the same user name and password as the browser. Instead of typing them
+on a phone, scan a QR code: it carries the server's address, the user name and
+the password.
+
+`setup.sh` offers the code at the end of a first installation, for the
+password chosen there. Later:
+
+```bash
+cd /opt/hermes-box && ./pair.sh
+```
+
+Only a hash of the password is stored, so the current one cannot be shown
+again: `pair.sh` sets a new password (your own, or a random one it prints),
+restarts the stack and shows the code for it. The old password stops working,
+in the browser too, and every signed-in device has to sign in again. That is
+also what to do about a lost phone.
+
+The code is the password in readable form. It is drawn on a terminal only,
+never in an unattended run, and wiped from the screen once you confirm the
+scan. Do not screenshot it. What it holds:
+
+```json
+{"v":1,"url":"https://agent.example.com","user":"admin","password":"..."}
+```
 
 ### Model and provider
 
@@ -353,6 +382,7 @@ into the page, and the Webapp picks a change up on the next page load.
 | --- | --- |
 | `get.sh` | one-command installation: Docker, the files from the image, then `setup.sh` |
 | `setup.sh` | first-installation wizard |
+| `pair.sh` | QR code that signs the mobile app in; sets a new Webapp password |
 | `install.sh` | installation and deployment of changes |
 | `compose.yaml` | definition of the containers |
 | `Dockerfile` | the official Hermes image + `sops`, `age`, `uv` and `himalaya`; also carries the files in this table |

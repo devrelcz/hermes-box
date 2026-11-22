@@ -8,6 +8,7 @@
 #   4. lets Hermes' own wizard pick the model and provider
 #   5. sets up the sign-in for the Webapp
 #   6. installs the services and starts everything (./install.sh)
+#   7. shows a QR code that signs the mobile app in (./pair.sh shows one later)
 #
 # Safe to run again: finished steps are skipped, so a later run adds what was
 # skipped the first time (the model, the sign-in) and restarts the
@@ -26,6 +27,7 @@
 #   SETUP_MODEL=wizard|skip             run Hermes' model wizard
 #   SETUP_WEBAPP_LOGIN=skip             leave the Webapp sign-in for later
 #   SETUP_WEBAPP_USER=admin  SETUP_WEBAPP_PASSWORD=...
+#   SETUP_PAIR=yes|no                   show the QR code for the mobile app (terminal only)
 #   SETUP_AUTO_DEPLOY=yes|no
 
 set -euo pipefail
@@ -37,7 +39,7 @@ start=1
 for arg in "$@"; do
   case "$arg" in
     --no-start) start=0 ;;
-    -h|--help) sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,32p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "unknown option: $arg" >&2; exit 2 ;;
   esac
 done
@@ -215,6 +217,7 @@ drop_nous_login() {
   hermes_quiet config unset dashboard.oauth.client_id || true
   rm -f "$DATA_DIR/.hermes/webapp/sign-in-registration.json"
 }
+pair_password=""
 if [ -n "$(hermes config get dashboard.basic_auth.username 2>/dev/null | tail -n1)" ]; then
   note "already configured"
 else
@@ -237,6 +240,8 @@ else
       hash="$(printf '%s' "$password" | docker run --rm -i --network none -w /opt/hermes \
         --entrypoint /opt/hermes/.venv/bin/python "$IMAGE" -c \
         'import sys; from plugins.dashboard_auth.basic import hash_password; print(hash_password(sys.stdin.read()))' 2>/dev/null | tail -n1)"
+      # Kept until the end of this run for the mobile app's QR code (step 7).
+      pair_password="$password"
       unset password again
       case "$hash" in scrypt\$*) ;; *) die "could not hash the password" ;; esac
       hermes_quiet config set dashboard.basic_auth.username "$user"
@@ -260,7 +265,9 @@ if [ -d .git ] && [ -z "$(env_get AUTO_DEPLOY)" ] && yes_no SETUP_AUTO_DEPLOY "D
 fi
 
 if [ "$start" -eq 0 ]; then
+  unset pair_password
   say "Prepared. Start everything with ./install.sh"
+  note "then pair the mobile app with ./pair.sh (it sets a new password)"
   exit 0
 fi
 
@@ -283,3 +290,14 @@ note "Webapp:  https://$DOMAIN"
 note "Now keep two things somewhere other than this server:"
 note "  1. the private key $KEY_FILE (without it the secrets and backups cannot be read)"
 note "  2. the directory instance/, best as a private git repository (see instance/README.md)"
+
+# ── 7. Mobile app ────────────────────────────────────────────────────────────
+# The code carries the password, so it is offered on a terminal only and only
+# while this run still knows the password. Later, ./pair.sh sets a new one.
+if [ -n "$pair_password" ] && [ "$interactive" -eq 1 ] &&
+   yes_no SETUP_PAIR "Show a QR code that signs the mobile app in?" yes; then
+  printf '%s\n' "$pair_password" | ./pair.sh --show || note "could not show the code; pair later with ./pair.sh"
+else
+  note "Mobile app: ./pair.sh shows a QR code that signs it in (it sets a new password)"
+fi
+unset pair_password

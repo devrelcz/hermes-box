@@ -31,7 +31,7 @@ jobs:
       - name: Check the scripts
         run: |
           shellcheck --severity=error \
-            get.sh install.sh setup.sh check.sh sops.sh \
+            get.sh install.sh setup.sh pair.sh check.sh sops.sh \
             backup/*.sh monitor/*.sh deploy/*.sh docker/*.sh
 
       - name: Name and version
@@ -68,6 +68,8 @@ jobs:
           docker run --rm --network none --entrypoint age-keygen "$IMAGE:$VERSION" --version
           docker run --rm --network none --entrypoint himalaya "$IMAGE:$VERSION" --version
           docker run --rm --network none --entrypoint /opt/hermes/bin/hermes "$IMAGE:$VERSION" --version
+          # pair.sh draws its QR code with the library Hermes ships.
+          docker run --rm --network none --entrypoint /opt/hermes/.venv/bin/python "$IMAGE:$VERSION" -c 'import qrcode; qrcode.QRCode().get_matrix'
           # Bot Desktop: the packages for a bot's screen are in the image. The
           # command exits 1 while no screen is running, so only its report counts.
           screen="$(docker run --rm --network none --entrypoint /opt/hermes/bin/hermes "$IMAGE:$VERSION" computer-use screen status || true)"
@@ -76,12 +78,12 @@ jobs:
           # What an installation gets out of it.
           out="$(mktemp -d)"
           docker run --rm --network none -v "$out:/out" --entrypoint hermes-box-extract "$IMAGE:$VERSION"
-          for file in compose.yaml install.sh setup.sh check.sh sops.sh release.env \
+          for file in compose.yaml install.sh setup.sh pair.sh check.sh sops.sh release.env \
                       backup/hermes-backup.sh monitor/hermes-monitor.sh server/hermes-docker.service \
                       caddy/Caddyfile instance.example/env.example; do
             test -s "$out/$file" || { echo "missing in the image: $file"; exit 1; }
           done
-          test -x "$out/setup.sh"
+          test -x "$out/setup.sh" && test -x "$out/pair.sh"
           grep -qx "HERMES_BOX_IMAGE=$IMAGE:$VERSION" "$out/release.env"
           # Nothing of an installation may be in a published image.
           test ! -e "$out/instance" && test ! -e "$out/.env" && test ! -e "$out/.git"
