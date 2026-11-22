@@ -3,7 +3,7 @@
 # missing, takes the files out of the published image and starts the wizard
 # (./setup.sh). Nothing has to be on the server beforehand except curl:
 #
-#   curl -fsSL https://raw.githubusercontent.com/danielrataj/hermes-box/master/get.sh | sudo bash
+#   curl -fsSL https://raw.githubusercontent.com/devrelcz/hermes-box/master/get.sh | sudo bash
 #
 # Options go after `bash -s --`:
 #
@@ -15,7 +15,7 @@
 #
 # Settings, through the environment (`sudo VAR=value bash`):
 #
-#   INSTALL_IMAGE=ghcr.io/danielrataj/hermes-box:1   which release, e.g. :1.0.0
+#   INSTALL_IMAGE=ghcr.io/devrelcz/hermes-box:1   which release, e.g. :1.0.0
 #   INSTALL_DIR=/opt/hermes-box                      where the files go
 #   SETUP_*                                          answers for ./setup.sh, see its header
 #
@@ -27,7 +27,7 @@ set -euo pipefail
 # Everything is in a function that is called on the last line: a download cut
 # off halfway then runs nothing instead of half of the script.
 main() {
-  local image="${INSTALL_IMAGE:-ghcr.io/danielrataj/hermes-box:1}"
+  local image="${INSTALL_IMAGE:-ghcr.io/devrelcz/hermes-box:1}"
   local dir="${INSTALL_DIR:-/opt/hermes-box}"
   local update=0 arg
   local -a setup_args=()
@@ -105,12 +105,12 @@ usage() {
   cat <<'EOF'
 Installs Hermes Agent in Docker on this server.
 
-  curl -fsSL https://raw.githubusercontent.com/danielrataj/hermes-box/master/get.sh | sudo bash
+  curl -fsSL https://raw.githubusercontent.com/devrelcz/hermes-box/master/get.sh | sudo bash
 
   --update     new files from the image, then ./install.sh --restart
   --no-start   set everything up, do not start the stack
 
-Environment: INSTALL_IMAGE (default ghcr.io/danielrataj/hermes-box:1),
+Environment: INSTALL_IMAGE (default ghcr.io/devrelcz/hermes-box:1),
 INSTALL_DIR (default /opt/hermes-box), SETUP_* (answers for the wizard).
 EOF
 }

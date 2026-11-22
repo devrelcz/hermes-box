@@ -39,7 +39,7 @@ gets a certificate like any other name.
 One command, on a server with nothing installed:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/danielrataj/hermes-box/master/get.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/devrelcz/hermes-box/master/get.sh | sudo bash
 ```
 
 [`get.sh`](get.sh) installs Docker when it is missing (with Docker's own
@@ -54,14 +54,14 @@ wizard's answers can be given the same way, which makes the installation
 unattended:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/danielrataj/hermes-box/master/get.sh | sudo INSTALL_IMAGE=ghcr.io/danielrataj/hermes-box:1.0.0 SETUP_DOMAIN=agent.example.com bash
+curl -fsSL https://raw.githubusercontent.com/devrelcz/hermes-box/master/get.sh | sudo INSTALL_IMAGE=ghcr.io/devrelcz/hermes-box:1.0.0 SETUP_DOMAIN=agent.example.com bash
 ```
 
 The same by hand, when Docker is already there and you would rather not pipe
 a script into a shell:
 
 ```bash
-docker run --rm -v /opt/hermes-box:/out --entrypoint hermes-box-extract ghcr.io/danielrataj/hermes-box:1
+docker run --rm -v /opt/hermes-box:/out --entrypoint hermes-box-extract ghcr.io/devrelcz/hermes-box:1
 ```
 
 ```bash
@@ -208,7 +208,7 @@ Seven containers. The first two use the `host` network mode:
 
 | Container | Image | What it does | Where it listens |
 | --- | --- | --- | --- |
-| `hermes` | `ghcr.io/danielrataj/hermes-box:<version>`, or `hermes-agent-local` built from the `Dockerfile` | gateway: agent, cron, sessions, Bots; plus the Webapp and dashboard | Webapp `127.0.0.1:9120`, dashboard `127.0.0.1:9119` |
+| `hermes` | `ghcr.io/devrelcz/hermes-box:<version>`, or `hermes-agent-local` built from the `Dockerfile` | gateway: agent, cron, sessions, Bots; plus the Webapp and dashboard | Webapp `127.0.0.1:9120`, dashboard `127.0.0.1:9119` |
 | `hermes-caddy` | `caddy:2.11` | TLS and reverse proxy | `80`, `443` |
 | `hermes-firecrawl` and four `hermes-firecrawl-*` (Playwright, Redis, RabbitMQ, Postgres) | see `compose.yaml` | web search and page reading for the agent | API `127.0.0.1:3002`; the rest only on a network of their own |
 
@@ -560,13 +560,13 @@ external check of the public address covers that (UptimeRobot and the like).
 A new version is a new image. In one command:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/danielrataj/hermes-box/master/get.sh | sudo bash -s -- --update
+curl -fsSL https://raw.githubusercontent.com/devrelcz/hermes-box/master/get.sh | sudo bash -s -- --update
 ```
 
 Or by hand: extract the files from it over the existing ones and deploy:
 
 ```bash
-docker run --rm -v /opt/hermes-box:/out --entrypoint hermes-box-extract ghcr.io/danielrataj/hermes-box:1
+docker run --rm -v /opt/hermes-box:/out --entrypoint hermes-box-extract ghcr.io/devrelcz/hermes-box:1
 ```
 
 ```bash
@@ -587,7 +587,7 @@ repository instead of extracting it from the image. Without `release.env`,
 `hermes-agent-local`) and `AUTO_DEPLOY` can be enabled.
 
 ```bash
-git clone https://github.com/danielrataj/hermes-box.git /opt/hermes-box
+git clone https://github.com/devrelcz/hermes-box.git /opt/hermes-box
 ```
 
 ```bash
@@ -608,7 +608,7 @@ A release is a tag of the form `v1.2.3`:
 git tag v1.2.3 && git push origin v1.2.3
 ```
 
-CI publishes `ghcr.io/danielrataj/hermes-box:1.2.3` and moves `:1.2` and `:1`.
+CI publishes `ghcr.io/devrelcz/hermes-box:1.2.3` and moves `:1.2` and `:1`.
 A tag with a suffix (`v1.2.3-rc.1`) publishes only itself.
 
 

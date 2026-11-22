@@ -31,8 +31,10 @@ DEPLOYING=/run/hermes-deploying     # tells the monitor to stay quiet
 RESTART_PATHS='^(compose\.yaml|Dockerfile|docker/|caddy/|instance/(\.env|compose\.yaml|secrets/))'
 BUILD_PATHS='^(Dockerfile|docker/)'
 
-# The label the Dockerfile gives every build of this image.
-IMAGE_LABEL='org.opencontainers.image.source=https://github.com/danielrataj/hermes-box'
+# The labels the Dockerfile gives every build of this image: the current one,
+# and the one builds had before the repository moved to devrelcz.
+IMAGE_LABELS='org.opencontainers.image.source=https://github.com/devrelcz/hermes-box
+org.opencontainers.image.source=https://github.com/danielrataj/hermes-box'
 
 host="$(hostname)"
 log() { printf 'deploy: %s\n' "$*"; }
@@ -48,7 +50,10 @@ webapp_up() {
 # image that have no name any more: not :latest, not :rollback. Docker keeps
 # an image a container still runs, and images of anything else are not touched.
 prune_old_builds() {
-  docker image prune -f --filter "label=$IMAGE_LABEL" >/dev/null 2>&1 || true
+  local label
+  while IFS= read -r label; do
+    docker image prune -f --filter "label=$label" >/dev/null 2>&1 || true
+  done <<< "$IMAGE_LABELS"
 }
 
 # Restart the stack and wait until the Webapp answers and the checks pass.
