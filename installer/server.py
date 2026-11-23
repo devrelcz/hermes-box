@@ -25,9 +25,10 @@ see "missing" in the state), failed (see "error"; retry), done.
 
 The installer does not stay around. The token is good for --lifetime seconds
 from the start, whatever the phase (a step that is running is allowed to
-end first); after the installation it stops after --linger seconds; and the
-password, which the QR code needs, is forgotten --pair-window seconds after
-the installation. "expires_at" and "pair_until" in the state say when.
+end first); after the installation it stops after --linger seconds (15
+minutes: long enough to open the Webapp and pair a phone, and then the port
+is closed); and the password, which the QR code needs, is forgotten
+--pair-window seconds after the installation. "expires_at" and "pair_until" in the state say when.
 
 Only the Python standard library is used: this runs before anything else is
 on the server.
@@ -84,7 +85,7 @@ def server_address():
 
 
 class Installer:
-    def __init__(self, steps_script, lifetime=7200, pair_window=600):
+    def __init__(self, steps_script, lifetime=7200, pair_window=900):
         self.steps_script = steps_script
         self.started_at = time.time()
         self.lifetime = lifetime
@@ -515,11 +516,11 @@ def main():
     parser.add_argument("--token-file", required=True)
     parser.add_argument("--steps", default=os.path.join(here, "steps.sh"))
     parser.add_argument("--page", default=os.path.join(here, "index.html"))
-    parser.add_argument("--linger", type=int, default=3600,
+    parser.add_argument("--linger", type=int, default=900,
                         help="seconds the installer stays up after the installation is done")
     parser.add_argument("--lifetime", type=int, default=7200,
                         help="seconds the token is good for from the start, whatever the phase")
-    parser.add_argument("--pair-window", type=int, default=600,
+    parser.add_argument("--pair-window", type=int, default=900,
                         help="seconds after the installation in which the mobile app's code can be shown")
     args = parser.parse_args()
 

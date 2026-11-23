@@ -45,7 +45,8 @@ About the installer's address:
 - Port 8443 has to be reachable. If it is not, use an SSH tunnel; the script
   prints the command.
 - The part after `#` is a one-time token, good for two hours. The installer
-  stops by itself when the installation is done.
+  stops by itself 15 minutes after the installation is done, and nothing
+  listens on that port afterwards.
 
 The page is one client of an API; the installation can be driven with `curl`
 as well, see [Installation in detail](docs/installation.md#the-installers-api).
