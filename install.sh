@@ -266,7 +266,13 @@ if [ -f "$DATA_DIR/.hermes/config.yaml" ]; then
   # hermes-box) would stay. web.search_backend and web.extract_backend take
   # precedence over web.backend and are left alone: that is where to choose
   # something else.
-  if [ "$(hermes_config get web.backend | tail -n1)" != "hermes-box" ]; then
+  # An image published before this backend (HERMES_BOX_IMAGE can lag behind
+  # this checkout) does not have it; the backend stays as it is then, and with
+  # no Firecrawl on this server any more Hermes reaches the web through the
+  # free tiers of public services until the image is updated.
+  if ! docker run --rm --entrypoint test "$IMAGE" -d /opt/hermes/plugins/web/hermes_box; then
+    note "$IMAGE has no hermes-box web backend; update HERMES_BOX_IMAGE (docs/server.md, Web and browser)"
+  elif [ "$(hermes_config get web.backend | tail -n1)" != "hermes-box" ]; then
     hermes_config set web.backend hermes-box >/dev/null
     note "set web.backend = hermes-box"; config_changed=1
   fi

@@ -208,6 +208,12 @@ keeps every request on this server:
 docker exec -u 1000:1000 -e HOME=/opt/data hermes hermes config set web.keyless_rescue false
 ```
 
+The backend is part of the image. An installation that runs an older
+published image (`HERMES_BOX_IMAGE` in `instance/.env`) with this checkout
+keeps its `web.backend`; with no Firecrawl on the server any more, Hermes
+then searches and reads through the free tiers of public services until the
+image is updated.
+
 `check.sh` watches the SearXNG container and its health address, but does
 not search, so as not to ask outside engines every few minutes. Earlier
 versions ran a Firecrawl for this, in five containers and with about 2 GB of
