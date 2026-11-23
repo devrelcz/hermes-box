@@ -24,19 +24,34 @@ like any other name.
 curl -fsSL https://raw.githubusercontent.com/devrelcz/hermes-box/master/get.sh | sudo bash
 ```
 
-The script first says what it is about to do and what it puts on the server,
-and asks before it changes anything. Then it installs Docker when it is
-missing, downloads the image (several GB) and asks, in menus you move through
-with the arrow keys:
+The script starts a temporary installer on the server and prints its
+address, `https://<server>:8443/#<token>`. Open it in a browser. Nothing
+changes on the server before you press Install there. The page, in English
+or Czech, asks for a user name and a password for the Webapp. The Webapp
+gets the address `<server's address>.sslip.io` by itself; a domain of your
+own can be filled in instead, under "I want my own domain".
 
-1. the host name of the Webapp (or `<address>.sslip.io` without a domain),
-2. a user name and password for the Webapp,
-3. whether to choose the model now (Hermes' own wizard, after the download).
+Then one bar shows how far the installation is: Docker when it is missing,
+the download of the image (several GB), the setup, the first backup and a
+check. You can close the page and open it again; the installation goes on.
+At the end the page has a button that opens the Webapp and a QR code for
+the mobile app. The model is chosen in the Webapp afterwards.
 
-Then it starts everything, runs the first backup and checks the result. The
-Webapp is at `https://<your host name>`. The long steps show a single progress
-line; their output is in `/var/log/hermes-box-setup.log`, and `--verbose`
-(`... | sudo bash -s -- --verbose`) shows it as it runs.
+About the installer's address:
+
+- The browser warns about the certificate once. No authority signs one for a
+  bare address, so the script makes its own and prints its fingerprint;
+  compare it with the one the browser shows.
+- Port 8443 has to be reachable. If it is not, use an SSH tunnel; the script
+  prints the command.
+- The part after `#` is a one-time token. The installer stops by itself when
+  the installation is done.
+
+The page is one client of an API; the installation can be driven with `curl`
+as well, see [Installation in detail](docs/installation.md#the-installers-api).
+To answer in the terminal instead, add `--terminal`
+(`... | sudo bash -s -- --terminal`). The output of the long steps is in
+`/var/log/hermes-box-setup.log`.
 
 Two things to do right after the installation:
 
@@ -47,8 +62,9 @@ Two things to do right after the installation:
   a private git repository. It holds this installation's settings and
   encrypted secrets.
 
-The wizard can be run again at any time (`cd /opt/hermes-box && ./setup.sh`);
-it skips what is already done. For an unattended installation, an
+The setup can be run again at any time (the same command, or
+`cd /opt/hermes-box && ./setup.sh` in the terminal); it skips what is already
+done. For an unattended installation, an
 installation without piping a script into a shell, or one from git, see
 [Installation in detail](docs/installation.md).
 
@@ -56,7 +72,7 @@ installation without piping a script into a shell, or one from git, see
 
 [Hermes Hobs](https://github.com/devrelcz/hermes-hobs) signs in with the same
 user name and password as the browser. Instead of typing them on a phone,
-scan a QR code. The wizard offers the code at the end of the installation.
+scan a QR code. The installer offers the code at the end of the installation.
 Later:
 
 ```bash
