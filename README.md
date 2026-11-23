@@ -25,14 +25,8 @@ curl -fsSL https://raw.githubusercontent.com/devrelcz/hermes-box/master/get.sh |
 ```
 
 <p>
-  <img src="docs/images/installer-1-sign-in.png" width="100%"
-       alt="The installer's first screen: a name and a password to choose, and the Install button">
-</p>
-<p>
-  <img src="docs/images/installer-2-installing.png" width="49%"
-       alt="The installation in progress: one bar and one line saying what is going on">
-  <img src="docs/images/installer-3-ready.png" width="49%"
-       alt="The installation is done: a button that opens the assistant and a QR code for the phone">
+  <img src="docs/images/installer.png" width="100%"
+       alt="The installer in three steps: choose a name and a password, it installs by itself, open your assistant">
 </p>
 
 The script starts a temporary installer on the server and prints its
