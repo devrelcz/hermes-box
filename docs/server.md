@@ -208,8 +208,16 @@ docker exec -u 1000:1000 -e HOME=/opt/data hermes hermes computer-use screen sta
 
 - A screen is started only on request and stops after 30 minutes without use
   (`bot_desktop.idle_stop_minutes`). With a browser open it takes 1 to 1.5 GB
-  of memory, and Hermes does not start one with less than about 1.5 GB free
-  (`bot_desktop.min_free_memory_mb`).
+  of memory, and Hermes does not start one while less than
+  `bot_desktop.min_free_memory_mb` is free ("Not enough free memory for a
+  desktop"). Hermes' own default is 1536; `install.sh` writes 400 to the
+  `config.yaml` of every bot that does not name the limit yet, because a
+  server with 4 GB never has 1.5 GB free. With so little, a second screen at
+  the same time runs from swap and is slow. To change it for one bot:
+
+  ```bash
+  docker exec -u 1000:1000 -e HOME=/opt/data hermes hermes -p <bot> config set bot_desktop.min_free_memory_mb 768
+  ```
 - No port is opened. The picture goes over the Webapp's own connection, behind
   its sign-in; Xvnc listens on a socket in the data directory only.
 - The bot's desktop state and browser profile are in `bot-desktop/` in the
