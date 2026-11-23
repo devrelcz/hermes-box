@@ -112,12 +112,13 @@ API; the page is one client of it. It exists only for the installation:
   address after `#`; a browser never sends that part to the server. It is
   good for two hours from the start, whatever the installation is doing (a
   step that is running is allowed to end); then the installer stops.
-- **Lifetime.** It stops on `POST /api/finish`, or by itself an hour after
-  the installation is done, and deletes the certificate and the token.
+- **Lifetime.** It stops on `POST /api/finish`, or by itself 15 minutes
+  after the installation is done, and deletes the certificate and the token;
+  nothing listens on its port afterwards.
   `systemctl stop hermes-box-installer` stops it at any time; running
   `get.sh` again starts a new one, or prints the address of a running one.
 - **Password.** It is kept in memory for `setup.sh` and for the mobile app's
-  code, and forgotten ten minutes after the installation; `GET /api/pair`
+  code, and forgotten 15 minutes after the installation; `GET /api/pair`
   works only until then.
 - **Where it listens.** On every address, port 8443. `INSTALL_PORT` changes
   the port; `INSTALL_BIND=127.0.0.1` makes it reachable through an SSH tunnel

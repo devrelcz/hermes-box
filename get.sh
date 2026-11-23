@@ -185,9 +185,9 @@ WEB_UNIT=hermes-box-installer
 # differ from the ones this script was released with are refused.
 # installer-sums: begin (written by installer/sums.sh)
 WEB_SUMS="
-964996025218a2f52a4322176a446aacc243b8b47a1689e43122de004ebc266b  server.py
+e9f5f59d7515f189e3d5c31b9bf91f7c98664235f28059364331acd1f29edd74  server.py
 3c15191d53d21ed95b98a74578f3883da02b5758b61f002d6527c35cb5579ebe  steps.sh
-be83c4877c2d8a42b40a28c402d7ef648dfd6cb9fb198854b07353762fc9e297  index.html
+9fb21edc5c30fe7699967e4ee83929988ce02fc2cd9ccafcd7dff70143df0375  index.html
 "
 # installer-sums: end
 
