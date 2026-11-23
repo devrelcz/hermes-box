@@ -65,6 +65,22 @@ RUN set -e; f=/opt/hermes/agent/codex_headers.py; \
     sed -i 's/^        from compression import zstd$/        raise ImportError("zstd request compression is disabled, see Dockerfile")/' "$f"; \
     cd /opt/hermes && .venv/bin/python -c 'from agent.codex_headers import codex_request_compression_hooks as hooks; assert hooks("https://chatgpt.com/backend-api/codex") is None and hooks("https://chatgpt.com/backend-api/codex", async_mode=True) is None'
 
+# A bot's screen (Bot Desktop) is refused while less memory is free than
+# bot_desktop.min_free_memory_mb, and Hermes' default of 1536 never passes on
+# a 4 GB server that also runs Firecrawl. Every bot has a config.yaml of its
+# own and a bot can be created at any time, so the limit cannot be written to
+# the configs once: the default itself is lowered here, in both places Hermes
+# keeps it. A value in a bot's config.yaml still takes precedence. The build
+# fails if this no longer applies to a newer Hermes; adapt it then.
+RUN set -e; r=/opt/hermes/tools/bot_desktop/resources.py; d=/opt/hermes/hermes_cli/config_defaults.py; \
+    grep -q '^DEFAULT_MIN_FREE_MB = 1536$' "$r"; \
+    grep -q '^        "min_free_memory_mb": 1536,$' "$d"; \
+    sed -i 's/^DEFAULT_MIN_FREE_MB = 1536$/DEFAULT_MIN_FREE_MB = 400/' "$r"; \
+    sed -i 's/^        "min_free_memory_mb": 1536,$/        "min_free_memory_mb": 400,/' "$d"; \
+    cd /opt/hermes && home="$(mktemp -d)" \
+ && HERMES_HOME="$home" HOME="$home" .venv/bin/python -c 'from tools.bot_desktop.resources import min_free_mb; assert min_free_mb() == 400, min_free_mb()' \
+ && rm -rf "$home"
+
 COPY --chmod=0755 docker/secrets-entrypoint.sh /usr/local/bin/secrets-entrypoint
 
 # The image also carries the files a server needs around the containers
