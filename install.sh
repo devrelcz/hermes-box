@@ -215,6 +215,7 @@ note "all files in instance/secrets/ decrypt with this server's key"
 
 # ── 5. Settings in Hermes' own config ────────────────────────────────────────
 config_changed=0
+BOT_SCREEN_MIN_FREE_MB=400
 if [ -f "$DATA_DIR/.hermes/config.yaml" ]; then
   say "Checking settings in config.yaml"
   hermes_offline() {  # the hermes CLI against the data directory, offline
@@ -258,6 +259,23 @@ if [ -f "$DATA_DIR/.hermes/config.yaml" ]; then
         note "could not enable the $toolset toolset for cron jobs"
       fi
     fi
+  done
+  # A bot's screen (Bot Desktop) is refused while less memory is free than
+  # bot_desktop.min_free_memory_mb, and Hermes' own default of 1536 never
+  # passes on a 4 GB server that also runs Firecrawl. Every bot has a
+  # config.yaml of its own, so the limit is written to each one that does not
+  # name it yet; a value somebody wrote there is left alone.
+  for bot_config in "$DATA_DIR/.hermes/config.yaml" "$DATA_DIR"/.hermes/profiles/*/config.yaml; do
+    [ -f "$bot_config" ] || continue
+    ! grep -q '^  min_free_memory_mb:' "$bot_config" || continue
+    bot="$(basename "$(dirname "$bot_config")")"
+    if [ "$bot_config" = "$DATA_DIR/.hermes/config.yaml" ]; then
+      bot=default
+      hermes_config set bot_desktop.min_free_memory_mb "$BOT_SCREEN_MIN_FREE_MB" >/dev/null || continue
+    else
+      hermes_offline -p "$bot" config set bot_desktop.min_free_memory_mb "$BOT_SCREEN_MIN_FREE_MB" >/dev/null || continue
+    fi
+    note "set bot_desktop.min_free_memory_mb = $BOT_SCREEN_MIN_FREE_MB for the bot $bot"; config_changed=1
   done
   # The Firecrawl in compose.yaml both searches and reads pages. Hermes chooses a
   # backend from the keys it finds only until one is written to config.yaml,
