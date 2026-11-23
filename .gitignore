@@ -8,3 +8,4 @@
 .DS_Store
 # Created on a server to pause automatic deployment.
 deploy/PAUSE
+__pycache__/

@@ -48,19 +48,21 @@ restarts="$(docker inspect -f '{{.RestartCount}}' hermes 2>/dev/null || echo 0)"
 if [ "$restarts" -eq 0 ]; then ok "container hermes has not crashed"
 else fail "container hermes was restarted ${restarts}x after a crash"; fi
 
-# The local Firecrawl: the agent's web search and page reading.
-for name in hermes-firecrawl hermes-firecrawl-playwright hermes-firecrawl-redis hermes-firecrawl-rabbitmq hermes-firecrawl-postgres; do
-  state="$(docker inspect -f '{{.State.Status}}' "$name" 2>/dev/null || echo missing)"
-  if [ "$state" = running ]; then ok "container $name is running"; else fail "container $name is $state"; fi
-done
-# Its API comes up later than the Webapp after a restart, and a deployment
-# runs this check right then; give it a minute before calling it down.
-firecrawl_up() {
+# SearXNG: the agent's web search. Only its own health, no search: a search
+# asks outside engines, and this check runs every few minutes.
+state="$(docker inspect -f '{{.State.Status}}' hermes-searxng 2>/dev/null || echo missing)"
+if [ "$state" = running ]; then ok "container hermes-searxng is running"; else fail "container hermes-searxng is $state"; fi
+# It can come up later than the Webapp after a restart, and a deployment runs
+# this check right then; give it a minute before calling it down.
+searxng_up() {
   local i
-  for i in $(seq 1 12); do is_up http://127.0.0.1:3002/ && return 0; sleep 5; done
+  for i in $(seq 1 12); do is_up http://127.0.0.1:8888/healthz && return 0; sleep 5; done
   return 1
 }
-check "Firecrawl answers on 127.0.0.1:3002" firecrawl_up
+check "SearXNG answers on 127.0.0.1:8888" searxng_up
+if docker ps -a --format '{{.Names}}' | grep -q '^hermes-firecrawl'; then
+  warn "Firecrawl containers are left over from an earlier version; ./install.sh removes them"
+fi
 
 # ── Agent ────────────────────────────────────────────────────────────────────
 if grep -Eqs '^model:' "$DATA_DIR/.hermes/config.yaml"; then ok "a model is configured"

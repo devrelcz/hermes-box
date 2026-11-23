@@ -1,0 +1,44 @@
+# SearXNG for the agent's web_search (see compose.yaml, searxng, and
+# docs/server.md, Web and browser). Only the agent asks it, on loopback, for
+# JSON; nobody opens it in a browser.
+#
+# Everything not set here is SearXNG's own default. server.secret_key comes
+# from SEARXNG_SECRET, which compose.yaml makes up anew at every start.
+use_default_settings: true
+
+general:
+  instance_name: hermes-box
+
+server:
+  # The limiter tells people from bots; here the only client is the agent,
+  # and it would count it as a bot.
+  limiter: false
+  public_instance: false
+  image_proxy: false
+
+search:
+  safe_search: 0
+  # html for a look by hand through an SSH tunnel, json for the agent.
+  formats: [html, json]
+
+outgoing:
+  request_timeout: 4.0
+  max_request_timeout: 8.0
+
+# Which engines answer depends on the server's address: search engines often
+# refuse requests from data centres. From a Hetzner address in November 2026
+# Google's own engine and Qwant answered "access denied", DuckDuckGo a
+# CAPTCHA, and Brave links that lead nowhere; Bing, Yahoo, Seznam and the
+# "google cse" engine (on by default) gave good results. An engine that
+# refuses is skipped for that search, so a few extra ones cost little.
+# Wikipedia, Wikidata and OpenStreetMap work only with a contact address,
+# SEARXNG_CONTACT_URL in instance/.env (see docs/server.md).
+engines:
+  - name: bing
+    disabled: false
+  - name: yahoo
+    disabled: false
+  - name: seznam
+    disabled: false
+  - name: duckduckgo
+    disabled: true

@@ -488,7 +488,7 @@ intro() {  # <installation directory> <data directory>
 
   ${UI_B}What happens now${UI_N}
     1. Docker is installed, if it is missing.
-    2. Hermes Box is downloaded: about 11 GB, the longest part.
+    2. Hermes Box is downloaded: about 5 GB, the longest part.
     3. A few questions: the web address, a user name and password, the model.
     4. Everything is set up and started: HTTPS, a daily backup, a health check.
     It takes 10 to 20 minutes. Running it again skips the finished steps.

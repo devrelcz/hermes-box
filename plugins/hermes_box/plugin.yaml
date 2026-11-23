@@ -1,0 +1,7 @@
+name: web-hermes-box
+version: 1.0.0
+description: "Web search through the SearXNG on this server (SEARXNG_URL) and page reading on this server, without an outside service. Added by hermes-box."
+author: hermes-box
+kind: backend
+provides_web_providers:
+  - hermes-box

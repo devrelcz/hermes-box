@@ -5,6 +5,7 @@
 #              on 127.0.0.1:9120, published by Caddy at HERMES_DOMAIN
 #   dashboard  admin panel on 127.0.0.1:9119; not published, use an SSH tunnel
 #   caddy      TLS and reverse proxy for the Webapp
+#   searxng    web search for the agent, on 127.0.0.1:8888
 #
 # This repository is the same for every installation. What differs lives in
 # instance/ (see instance.example/): the settings in instance/.env and the
@@ -83,8 +84,8 @@ services:
       # jobs keep their state files under those absolute paths. The check
       # compares path prefixes, so each mount has to be listed.
       HERMES_WRITE_SAFE_ROOT: "/opt/data:/home/hermes/.hermes:/home/hermes/openknowledge:/home/hermes/projects:/home/hermes/.local/bin"
-      # The Firecrawl below; the agent's web tools search and read pages with it.
-      FIRECRAWL_API_URL: http://127.0.0.1:3002
+      # The SearXNG below; the agent's web_search asks it (plugins/hermes_box).
+      SEARXNG_URL: http://127.0.0.1:8888
 
     volumes:
       # The agent's secrets, encrypted; see docker/secrets-entrypoint.sh.
@@ -119,142 +120,54 @@ services:
       - caddy-data:/data
       - caddy-config:/config
 
-  # ── Firecrawl ──────────────────────────────────────────────────────────────
-  # Searches the web and reads pages for the agent's web_search and
-  # web_extract, on this server and without an API key (see docs/server.md, Web
-  # and browser). Five containers on a network of their own.
-  # They follow Firecrawl's own docker-compose.yaml, with published images
-  # instead of a build and smaller limits: one agent, not a crawling service.
-  # The API has no authentication, so it is published on loopback only.
-  firecrawl:
-    image: ghcr.io/firecrawl/firecrawl:2.11.728
-    container_name: hermes-firecrawl
+  # ── SearXNG ────────────────────────────────────────────────────────────────
+  # The search engine behind the agent's web_search: it asks several search
+  # engines at once (searxng/settings.yml says which) and needs no API key.
+  # Pages are read by the agent itself (plugins/hermes_box), not here. The API
+  # has no authentication, which is why it is published on loopback only.
+  searxng:
+    image: searxng/searxng:2026.11.21-c6ee3e9fd
+    container_name: hermes-searxng
     logging: *logging
     restart: unless-stopped
-    networks: [firecrawl]
     ports:
-      - "127.0.0.1:3002:3002"
-    ulimits:
-      nofile:
-        soft: 65535
-        hard: 65535
+      - "127.0.0.1:8888:8080"
+    # SearXNG refuses to start without a secret key. Nothing here has to
+    # survive a restart (no sessions, no image proxy), so each start makes one.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - export SEARXNG_SECRET="$$(head -c 32 /dev/urandom | base64 | tr -dc A-Za-z0-9)"; exec /usr/local/searxng/entrypoint.sh
     environment:
-      HOST: "0.0.0.0"
-      PORT: "3002"
-      EXTRACT_WORKER_PORT: "3004"
-      WORKER_PORT: "3005"
-      ENV: local
-      USE_DB_AUTHENTICATION: "false"
-      REDIS_URL: redis://firecrawl-redis:6379
-      REDIS_RATE_LIMIT_URL: redis://firecrawl-redis:6379
-      PLAYWRIGHT_MICROSERVICE_URL: http://firecrawl-playwright:3000/scrape
-      NUQ_RABBITMQ_URL: amqp://firecrawl-rabbitmq:5672
-      POSTGRES_HOST: firecrawl-postgres
-      POSTGRES_PORT: "5432"
-      POSTGRES_USER: postgres
-      # Reachable only on the firecrawl network; it holds the job queue.
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: postgres
-      # Each worker is a Node process of about 300 MB; the default is 5. One
-      # still scrapes several pages at a time.
-      NUQ_WORKER_COUNT: "1"
-      NUM_WORKERS_PER_QUEUE: "1"
-      CRAWL_CONCURRENT_REQUESTS: "4"
-      MAX_CONCURRENT_JOBS: "2"
-      BROWSER_POOL_SIZE: "2"
-      HARNESS_STARTUP_TIMEOUT_MS: "60000"
-    command: ["node", "dist/src/harness.js", "--start-docker"]
-    depends_on:
-      firecrawl-redis:
-        condition: service_started
-      firecrawl-playwright:
-        condition: service_started
-      firecrawl-rabbitmq:
-        condition: service_healthy
-      firecrawl-postgres:
-        condition: service_healthy
-    cpus: 2.0
-    mem_limit: 4G
-    memswap_limit: 4G
-
-  firecrawl-playwright:
-    # Firecrawl publishes this image and the Postgres one without version
-    # tags; these are the builds that were current for the API version above.
-    image: ghcr.io/firecrawl/playwright-service:sha-8b950c45c8ca
-    container_name: hermes-firecrawl-playwright
-    logging: *logging
-    restart: unless-stopped
-    networks: [firecrawl]
-    environment:
-      PORT: "3000"
-      MAX_CONCURRENT_PAGES: "4"
+      SEARXNG_BASE_URL: http://127.0.0.1:8888/
+      # Wikipedia, Wikidata and OpenStreetMap answer only clients that name a
+      # contact (docs/server.md, Web and browser); without it they stay off.
+      SEARXNG_CONTACT_URL: ${SEARXNG_CONTACT_URL:-}
+    volumes:
+      # One file, not the directory: the image would take the directory over.
+      - ./searxng/settings.yml:/etc/searxng/settings.yml:ro
+    user: "977:977"
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/cache/searxng:uid=977,gid=977
     security_opt:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    tmpfs:
-      - /tmp/.cache:noexec,nosuid,size=1g
-    cpus: 2.0
-    mem_limit: 2G
-    memswap_limit: 2G
-
-  firecrawl-redis:
-    image: redis:8-alpine
-    container_name: hermes-firecrawl-redis
-    logging: *logging
-    restart: unless-stopped
-    networks: [firecrawl]
-    # Nothing is kept: the image's /data would otherwise be a new anonymous
-    # volume on every start.
-    command: ["redis-server", "--bind", "0.0.0.0", "--save", "", "--appendonly", "no"]
-    tmpfs:
-      - /data
-
-  firecrawl-rabbitmq:
-    image: rabbitmq:3.13-management-alpine
-    container_name: hermes-firecrawl-rabbitmq
-    logging: *logging
-    restart: unless-stopped
-    networks: [firecrawl]
-    # RabbitMQ names its data after the host name.
-    hostname: firecrawl-rabbitmq
-    volumes:
-      - firecrawl-rabbitmq:/var/lib/rabbitmq
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
-      interval: 10s
+      test: ["CMD", "/usr/local/searxng/.venv/bin/python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz', timeout=5)"]
+      interval: 60s
       timeout: 10s
-      retries: 6
-      start_period: 20s
-
-  firecrawl-postgres:
-    image: ghcr.io/firecrawl/nuq-postgres:sha-a7a63b4bfabf
-    container_name: hermes-firecrawl-postgres
-    logging: *logging
-    restart: unless-stopped
-    networks: [firecrawl]
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: postgres
-    # The job queue only; losing this volume loses nothing worth keeping.
-    volumes:
-      - firecrawl-postgres:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 6
-      start_period: 10s
-
-networks:
-  firecrawl:
+      retries: 3
+      start_period: 30s
+    cpus: 1.0
+    mem_limit: 384M
+    memswap_limit: 384M
 
 volumes:
   caddy-data:
   caddy-config:
-  firecrawl-postgres:
-  firecrawl-rabbitmq:
 
 secrets:
   age_key:

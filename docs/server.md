@@ -15,13 +15,13 @@ It has two parts:
 
 ## What runs
 
-Seven containers. The first two use the `host` network mode:
+Three containers. The first two use the `host` network mode:
 
 | Container | Image | What it does | Where it listens |
 | --- | --- | --- | --- |
 | `hermes` | `ghcr.io/devrelcz/hermes-box:<version>`, or `hermes-agent-local` built from the `Dockerfile` | gateway: agent, cron, sessions, Bots; plus the Webapp and dashboard | Webapp `127.0.0.1:9120`, dashboard `127.0.0.1:9119` |
 | `hermes-caddy` | `caddy:2.11` | TLS and reverse proxy | `80`, `443` |
-| `hermes-firecrawl` and four `hermes-firecrawl-*` (Playwright, Redis, RabbitMQ, Postgres) | see `compose.yaml` | web search and page reading for the agent | API `127.0.0.1:3002`; the rest only on a network of their own |
+| `hermes-searxng` | `searxng/searxng` (version in `compose.yaml`) | web search for the agent | `127.0.0.1:8888` |
 
 - The **Webapp** runs at `https://<HERMES_DOMAIN>` behind a login with
   the user name and password chosen during setup.
@@ -143,11 +143,11 @@ external check of the public address covers that (UptimeRobot and the like).
 The agent has two ways to the web, and they are set separately in
 `config.yaml`:
 
-- **`web_search` and `web_extract`** go through a backend. Here that is the
-  Firecrawl on this server, for both; see below. Another backend can be
-  chosen for either half. Some only search (`brave-free`, `ddgs`, `searxng`)
-  and cannot read a page; reading needs one that also extracts (`firecrawl`,
-  `tavily`, `exa`, `parallel`):
+- **`web_search` and `web_extract`** go through a backend. Here that is
+  `hermes-box`, which does both on this server; see below. Another backend can
+  be chosen for either half. Some only search (`brave-free`, `ddgs`,
+  `searxng`) and cannot read a page; reading needs one that also extracts
+  (`hermes-box`, `firecrawl`, `tavily`, `keenable`, `exa`, `parallel`):
 
   ```bash
   docker exec -u 1000:1000 -e HOME=/opt/data hermes hermes config set web.search_backend brave-free
@@ -163,30 +163,61 @@ The agent has two ways to the web, and they are set separately in
   name both. Other platforms are set with
   `hermes tools enable browser --platform <name>`.
 
-### Firecrawl on this server
+### Search and reading on this server
 
-Searching and reading pages need no account: a Firecrawl runs here, in five
-containers (API, Playwright, Redis, RabbitMQ, Postgres), and `compose.yaml`
-gives the agent its address (`FIRECRAWL_API_URL`). `install.sh` sets
-`web.backend: firecrawl` in `config.yaml`, which makes it the backend for both
-halves; what it cannot read is left to the browser. `web.search_backend` and
-`web.extract_backend` take precedence over `web.backend` and are not touched,
-so a different choice for one half goes there. Hermes installs its Firecrawl
-client into the data directory the first time the agent uses it. `check.sh`
-watches the five containers and the API. To try it on the server:
+Searching and reading pages need no account, and no outside service sees
+what the agent looks up or reads. The image adds a web backend of its own,
+`hermes-box` ([`plugins/hermes_box`](../plugins/hermes_box/provider.py)), and
+`install.sh` sets `web.backend: hermes-box` in `config.yaml`, which makes it
+the backend for both halves. `web.search_backend` and `web.extract_backend`
+take precedence over `web.backend` and are not touched, so a different choice
+for one half goes there.
+
+- **Search** goes to the SearXNG in the container `hermes-searxng`
+  (`SEARXNG_URL` in `compose.yaml`). SearXNG asks several search engines at
+  once and merges their results; which ones is set in
+  [`searxng/settings.yml`](../searxng/settings.yml). Search engines often
+  refuse requests from data centres, and which ones do depends on the
+  server's address: an engine that refuses is skipped for that search, and
+  the others answer. To see which engines answer from this server:
+
+  ```bash
+  curl -s 'http://127.0.0.1:8888/search?format=json&q=test' | python3 -c 'import json,sys; d=json.load(sys.stdin); print(sorted({e for r in d["results"] for e in r["engines"]}), d["unresponsive_engines"])'
+  ```
+
+  Wikipedia, Wikidata and OpenStreetMap answer only clients that name a
+  contact, and stay off until `SEARXNG_CONTACT_URL` in `instance/.env` gives
+  one (a web page or `mailto:` address of whoever runs this server; the
+  engines send it along with every request). SearXNG's API has no
+  authentication, which is why it listens on loopback only; it keeps
+  nothing worth backing up.
+- **Reading** happens in the agent's own container: the page is fetched from
+  here and turned into markdown, HTML with trafilatura (or markdownify, for
+  pages that are not one article: price lists, front pages, indexes), PDF
+  with pypdf. Requests to private and internal addresses are refused, also
+  after a redirect. What it cannot do is run JavaScript: a page that builds
+  its text in the browser, or a site that turns away readers that are not
+  browsers (Cloudflare's "Just a moment..."), comes back with an error that
+  points the agent to the browser.
+
+When every page of a `web_extract` fails, Hermes tries the free tiers of
+public services once more (`web.keyless_rescue`, on by default); `false`
+keeps every request on this server:
 
 ```bash
-curl -s -X POST http://127.0.0.1:3002/v2/scrape -H 'Content-Type: application/json' -d '{"url":"https://example.com","formats":["markdown"]}'
+docker exec -u 1000:1000 -e HOME=/opt/data hermes hermes config set web.keyless_rescue false
 ```
 
-The API has no authentication, which is why it listens on loopback only.
-Nothing in it is worth backing up: its two volumes hold a job queue. While
-Firecrawl does not answer, Hermes reads pages through the free tiers of public
-services instead (`web.keyless_rescue`, on by default; `false` keeps the
-requests on this server and lets them fail). The versions are pinned in
-`compose.yaml`; the Playwright and Postgres images are published without
-version numbers, so they are pinned to a build and updated by hand together
-with the API.
+The backend is part of the image. An installation that runs an older
+published image (`HERMES_BOX_IMAGE` in `instance/.env`) with this checkout
+keeps its `web.backend`; with no Firecrawl on the server any more, Hermes
+then searches and reads through the free tiers of public services until the
+image is updated.
+
+`check.sh` watches the SearXNG container and its health address, but does
+not search, so as not to ask outside engines every few minutes. Earlier
+versions ran a Firecrawl for this, in five containers and with about 2 GB of
+memory; `install.sh` removes what is left of it.
 
 The browser is slower and costs more tokens than `web_extract`; it is for
 pages that need JavaScript or a sign-in.

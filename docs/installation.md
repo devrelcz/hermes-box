@@ -8,11 +8,12 @@ questions. This page has the rest.
 You need a server with Linux (x86_64, with systemd), a domain pointing at its
 address, and ports 80 and 443 open. Everything is run as root.
 
-Size: the image is about 5 GB, Firecrawl's images about 6 GB, and a fresh
-installation takes about 15 GB of disk; an update needs room for a second
-image for a while, so plan for 40 GB or more. When idle, the agent's container
-uses about 250 MB of memory and Firecrawl about 2 GB. 4 GB of RAM is a
-sensible minimum, and with that little the server needs swap.
+Size: the image is about 5 GB, and a fresh installation takes about 9 GB of
+disk; an update needs room for a second image for a while, so plan for 40 GB
+or more. When idle, the agent's container uses about 250 MB of memory and
+SearXNG, for web search, about 120 MB; a browser the agent opens, and a bot's
+screen, take much more. 4 GB of RAM is a sensible minimum, and with that
+little the server needs swap.
 
 To try it out without a domain of your own, use `<address>.sslip.io` as the
 host name, for example `203.0.113.7.sslip.io`: it resolves to that address and

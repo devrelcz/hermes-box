@@ -9,3 +9,4 @@ deploy/PAUSE
 .DS_Store
 # Pictures for the README on GitHub; a server has no use for them.
 docs/images
+**/__pycache__
