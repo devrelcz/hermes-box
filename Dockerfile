@@ -94,6 +94,7 @@ COPY caddy /opt/hermes-box/caddy
 COPY deploy /opt/hermes-box/deploy
 COPY docs /opt/hermes-box/docs
 COPY docker /opt/hermes-box/docker
+COPY installer /opt/hermes-box/installer
 COPY instance.example /opt/hermes-box/instance.example
 COPY lib /opt/hermes-box/lib
 COPY monitor /opt/hermes-box/monitor

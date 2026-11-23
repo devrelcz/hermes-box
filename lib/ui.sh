@@ -9,6 +9,7 @@
 #
 #   HERMES_BOX_VERBOSE=1     show every command's output instead of a progress line
 #   HERMES_BOX_LOG=<file>    where that output goes (default /var/log/hermes-box-setup.log)
+#   HERMES_BOX_EVENTS=1      announce every step on stdout, for the installer's API
 #   NO_COLOR=1               no colours
 
 UI_LOG="${HERMES_BOX_LOG:-/var/log/hermes-box-setup.log}"
@@ -63,6 +64,11 @@ ui_duration() {  # <seconds>
   if [ "$1" -ge 60 ]; then printf '%dm %02ds' $(($1 / 60)) $(($1 % 60)); else printf '%ds' "$1"; fi
 }
 
+# For a program that runs the script and shows its progress (the installer's
+# API, installer/server.py): with HERMES_BOX_EVENTS=1 every step is announced
+# on stdout as "@@step start|<title>" and "@@step end|<status>|<title>".
+ui_event() { [ "${HERMES_BOX_EVENTS:-0}" != 1 ] || printf '@@step %s\n' "$1"; }
+
 # Run one step: its output goes to the log, the terminal shows a spinner and
 # how long it has taken. step stops the script when the step fails, after
 # showing the end of the log; step_try only sets STEP_STATUS. With
@@ -75,6 +81,7 @@ step_try() {  # <title> <command...>
   STEP_STATUS=0
   printf '\n--- %s (%s)\n' "$title" "$*" >>"$UI_LOG"
   UI_LOG_FROM=$(($(wc -l <"$UI_LOG") + 1))
+  ui_event "start|$title"
   if [ "$UI_VERBOSE" -eq 1 ]; then
     say "$title"
     ( set -o pipefail; "$@" 2>&1 | tee -a "$UI_LOG" ) &
@@ -101,6 +108,7 @@ step_try() {  # <title> <command...>
     fail "$title"
   fi
   printf -- '--- exit %s after %ss\n' "$STEP_STATUS" $((SECONDS - started)) >>"$UI_LOG"
+  ui_event "end|$STEP_STATUS|$title"
   return 0
 }
 step() {  # <title> <command...>

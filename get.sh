@@ -1,27 +1,51 @@
 #!/usr/bin/env bash
-# One-command installation on an empty server: installs Docker when it is
-# missing, takes the files out of the published image and starts the wizard
-# (./setup.sh). Nothing has to be on the server beforehand except curl:
+# One-command installation on an empty server. Nothing has to be on the
+# server beforehand except curl:
 #
 #   curl -fsSL https://raw.githubusercontent.com/devrelcz/hermes-box/master/get.sh | sudo bash
 #
+# It installs what the installer itself needs (python3, openssl), starts the
+# installer on this server and prints its address. The installer is an HTTPS
+# API with a page on top (installer/server.py, installer/index.html): the
+# page shows how far the installation is and asks for what is still needed.
+# It installs Docker when it is missing, takes the files out of the published
+# image and runs ./setup.sh. Nothing else changes on the server before the
+# installation is started there.
+#
+# The installer is temporary: its certificate is made for this run (the
+# browser warns about it once; the fingerprint is printed here to compare),
+# its address carries a one-time token that is good for two hours, and it
+# stops when the installation is finished. It runs as the systemd unit
+# hermes-box-installer, so it survives a lost SSH connection.
+#
+# The installer's files are downloaded from the same release as this script
+# and checked against the SHA-256 written below (installer/sums.sh); files
+# that differ are not run.
+#
 # Options go after `bash -s --`:
 #
+#   ... | sudo bash -s -- --terminal   ask in the terminal instead (./setup.sh's menus)
 #   ... | sudo bash -s -- --update     new files from the image, then ./install.sh --restart
-#   ... | sudo bash -s -- --no-start   passed on to ./setup.sh
+#   ... | sudo bash -s -- --no-start   terminal only: passed on to ./setup.sh
 #   ... | sudo bash -s -- --verbose    show every command's output, not a progress line
-#   ... | sudo bash -s -- --yes        do not ask before starting
+#   ... | sudo bash -s -- --yes        terminal only: do not ask before starting
 #
-# Run on a server that already has an installation, it only starts the wizard
-# again (finished steps are skipped); the files change only with --update.
+# With SETUP_DOMAIN set the installation is unattended and runs in the
+# terminal as well. Run on a server that already has an installation, the
+# installer offers only what was skipped so far; the files change only with
+# --update.
 #
-# It first says what it is about to do and asks before changing anything. The
-# output of the long steps goes to /var/log/hermes-box-setup.log.
+# The output of the long steps goes to /var/log/hermes-box-setup.log.
 #
 # Settings, through the environment (`sudo VAR=value bash`):
 #
 #   INSTALL_IMAGE=ghcr.io/devrelcz/hermes-box:1   which release, e.g. :1.0.0
 #   INSTALL_DIR=/opt/hermes-box                      where the files go
+#   INSTALL_PORT=8443                                the installer's port
+#   INSTALL_BIND=0.0.0.0                             127.0.0.1: reachable through an SSH tunnel only
+#   INSTALL_REF=v1.4.0                               the release the installer's files come from;
+#                                                    by default the one INSTALL_IMAGE names, else master
+#   INSTALL_SOURCE=<url or directory>                the same, as a whole address or a directory
 #   SETUP_*                                          answers for ./setup.sh, see its header
 #
 # Docker is installed with Docker's own script (https://get.docker.com), which
@@ -34,13 +58,14 @@ set -euo pipefail
 main() {
   local image="${INSTALL_IMAGE:-ghcr.io/devrelcz/hermes-box:1}"
   local dir="${INSTALL_DIR:-/opt/hermes-box}"
-  local update=0 confirmed=0 arg
+  local update=0 confirmed=0 terminal=0 arg
   local -a setup_args=()
 
   for arg in "$@"; do
     case "$arg" in
-      --update) update=1 ;;
-      --no-start) setup_args+=("$arg") ;;
+      --update) update=1; terminal=1 ;;
+      --terminal) terminal=1 ;;
+      --no-start) setup_args+=("$arg"); terminal=1 ;;
       -v|--verbose) UI_VERBOSE=1 ;;
       -y|--yes) confirmed=1 ;;
       -h|--help) usage; exit 0 ;;
@@ -56,6 +81,14 @@ main() {
 
   local existing=0
   [ -f "$dir/instance/.env" ] && existing=1
+
+  # Answers given in advance mean an unattended installation: nobody is there
+  # to open a page.
+  [ -z "${SETUP_DOMAIN:-}" ] || terminal=1
+  if [ "$terminal" -eq 0 ]; then
+    web_installer "$image" "$dir"
+    exit 0
+  fi
 
   # ── What is about to happen ───────────────────────────────────────────────
   if [ "$existing" -eq 1 ] && [ "$update" -eq 1 ]; then
@@ -128,14 +161,185 @@ Installs Hermes Agent in Docker on this server.
 
   curl -fsSL https://raw.githubusercontent.com/devrelcz/hermes-box/master/get.sh | sudo bash
 
+It starts a temporary installer on this server (an HTTPS API and a page)
+and prints its address; the installation is started and watched there.
+
+  --terminal   ask in the terminal instead of the page
   --update     new files from the image, then ./install.sh --restart
-  --no-start   set everything up, do not start the stack
+  --no-start   terminal only: set everything up, do not start the stack
   --verbose    show every command's output, not a progress line
-  --yes        do not ask before starting
+  --yes        terminal only: do not ask before starting
 
 Environment: INSTALL_IMAGE (default ghcr.io/devrelcz/hermes-box:1),
-INSTALL_DIR (default /opt/hermes-box), SETUP_* (answers for the wizard).
+INSTALL_DIR (default /opt/hermes-box), INSTALL_PORT (default 8443),
+INSTALL_BIND (default 0.0.0.0), INSTALL_REF (the release the installer's
+files come from), SETUP_* (answers for the wizard; with SETUP_DOMAIN the
+installation is unattended).
 EOF
+}
+
+# ── The installer: an HTTPS API and its page ──────────────────────────────────
+WEB_STATE=/var/lib/hermes-box-installer
+WEB_UNIT=hermes-box-installer
+# What the installer's files have to be: they run as root, so files that
+# differ from the ones this script was released with are refused.
+# installer-sums: begin (written by installer/sums.sh)
+WEB_SUMS="
+964996025218a2f52a4322176a446aacc243b8b47a1689e43122de004ebc266b  server.py
+3c15191d53d21ed95b98a74578f3883da02b5758b61f002d6527c35cb5579ebe  steps.sh
+be83c4877c2d8a42b40a28c402d7ef648dfd6cb9fb198854b07353762fc9e297  index.html
+"
+# installer-sums: end
+
+# This server's address on the way out; empty without the ip tool or a route.
+server_ip() {
+  ip -4 route get 1.1.1.1 2>/dev/null | sed -n 's/.* src \([0-9.]*\).*/\1/p' | head -n1
+}
+
+install_packages() {  # <package>...
+  if command -v apt-get >/dev/null; then
+    DEBIAN_FRONTEND=noninteractive apt-get update -qq || true
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "$@"
+  elif command -v dnf >/dev/null; then
+    dnf install -y -q "$@"
+  elif command -v yum >/dev/null; then
+    yum install -y -q "$@"
+  else
+    echo "no apt-get, dnf or yum here: install $* and run this again"
+    return 1
+  fi
+}
+
+# The release the installer's files are taken from: the one named, else the
+# one the image names (ghcr.io/...:1.4.0 is the tag v1.4.0), else master.
+web_ref() {  # <image>
+  local version="${1##*:}"
+  if [ -n "${INSTALL_REF:-}" ]; then
+    printf '%s' "$INSTALL_REF"
+  elif printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+    printf 'v%s' "$version"
+  else
+    printf 'master'
+  fi
+}
+
+# The installer's own files: from GitHub, or from a directory (a git
+# checkout). Each has to have the checksum this script carries.
+web_files() {  # <source>
+  local file want have
+  for file in server.py steps.sh index.html; do
+    rm -f "$WEB_STATE/$file"
+    case "$1" in
+      /*) cp "$1/$file" "$WEB_STATE/$file.new" ;;
+      *) fetch "$1/$file" "$WEB_STATE/$file.new" ;;
+    esac || { echo "could not get $file from $1"; web_mismatch; return 1; }
+    want="$(printf '%s\n' "$WEB_SUMS" | sed -n "s/^\([0-9a-f]\{64\}\)  $file\$/\1/p")"
+    have="$(sha256sum "$WEB_STATE/$file.new" | cut -d' ' -f1)"
+    if [ -z "$want" ] || [ "$want" != "$have" ]; then
+      rm -f "$WEB_STATE/$file.new"
+      echo "$file from $1 is not the file this script was released with"
+      echo "  expected sha256 ${want:-(none)}"
+      echo "  got             $have"
+      web_mismatch
+      return 1
+    fi
+    mv "$WEB_STATE/$file.new" "$WEB_STATE/$file"
+  done
+}
+web_mismatch() {
+  echo "This script and the installer's files have to come from the same release."
+  echo "Take get.sh from that release as well, for example:"
+  echo "  curl -fsSL https://raw.githubusercontent.com/devrelcz/hermes-box/v<version>/get.sh | sudo INSTALL_IMAGE=ghcr.io/devrelcz/hermes-box:<version> bash"
+  echo "A release older than the installer has none: add --terminal."
+}
+
+# A certificate for this run only: nobody can sign one for a bare address, so
+# the browser warns once. The fingerprint printed below is what to compare.
+web_certificate() {  # <address>
+  local names="IP:127.0.0.1,DNS:localhost"
+  [ -z "$1" ] || names="IP:$1,$names"
+  (umask 077; openssl req -x509 -newkey rsa:2048 -nodes -days 30 \
+    -subj "/CN=Hermes Box installer" -addext "subjectAltName=$names" \
+    -keyout "$WEB_STATE/tls.key" -out "$WEB_STATE/tls.crt")
+}
+
+web_address() {  # <address> <port> <bind>
+  local token fingerprint host="$1"
+  token="$(cat "$WEB_STATE/token")"
+  fingerprint="$(openssl x509 -in "$WEB_STATE/tls.crt" -noout -fingerprint -sha256 2>/dev/null | sed 's/^.*=//')"
+  say "Open the installer"
+  if [ "$3" = 127.0.0.1 ] || [ -z "$host" ]; then
+    note "It listens on this server only. From your computer:"
+    note "  ssh -L $2:127.0.0.1:$2 root@<this server>"
+    printf '\n    %shttps://localhost:%s/#%s%s\n\n' "$UI_B" "$2" "$token" "$UI_N"
+  else
+    printf '\n    %shttps://%s:%s/#%s%s\n\n' "$UI_B" "$host" "$2" "$token" "$UI_N"
+    hint "Port $2 has to be reachable (firewall, the provider's security group)."
+    hint "Or through SSH: ssh -L $2:127.0.0.1:$2 root@$host, then https://localhost:$2/ with the same #token"
+  fi
+  note "The browser warns about the certificate: it was made on this server a"
+  note "moment ago. Continue when its SHA-256 fingerprint is:"
+  note "  $fingerprint"
+  hint "The address is the key to the installer. It is good for two hours and"
+  hint "stops by itself when the installation is done."
+  hint "The API alone, with the certificate copied over SSH so that curl can check it:"
+  hint "  scp root@${host:-<this server>}:$WEB_STATE/tls.crt hermes-box.crt"
+  hint "  curl --cacert hermes-box.crt -H 'Authorization: Bearer <token>' https://${host:-localhost}:$2/api/state"
+  hint "Watch: journalctl -fu $WEB_UNIT    Stop: systemctl stop $WEB_UNIT"
+}
+
+web_installer() {  # <image> <installation directory>
+  local port="${INSTALL_PORT:-8443}" bind="${INSTALL_BIND:-0.0.0.0}"
+  local source
+  source="${INSTALL_SOURCE:-https://raw.githubusercontent.com/devrelcz/hermes-box/$(web_ref "$1")/installer}"
+  local address tool missing="" up=0
+  local -a pass=()
+  address="$(server_ip || true)"
+
+  printf '\n  %sHermes Box%s %s· Hermes Agent on your own server%s\n' "$UI_B" "$UI_N" "$UI_D" "$UI_N"
+  if systemctl is-active --quiet "$WEB_UNIT" 2>/dev/null && [ -s "$WEB_STATE/token" ]; then
+    note "The installer is already running."
+    web_address "$address" "$(cat "$WEB_STATE/port" 2>/dev/null || echo "$port")" "$(cat "$WEB_STATE/bind" 2>/dev/null || echo "$bind")"
+    return 0
+  fi
+  note "This starts a temporary installer on port $port and prints its address."
+  note "Nothing else changes here until the installation is started on that page."
+  log_start
+
+  say "Installer"
+  for tool in python3 openssl; do
+    command -v "$tool" >/dev/null || missing="$missing $tool"
+  done
+  command -v sha256sum >/dev/null || missing="$missing coreutils"
+  if [ -n "$missing" ]; then
+    # shellcheck disable=SC2086  # a list of package names
+    step "Installing$missing" install_packages $missing
+  fi
+  (umask 077; mkdir -p "$WEB_STATE")
+  chmod 700 "$WEB_STATE"
+  step "Getting the installer's files" web_files "$source"
+  step "Making a certificate for this run" web_certificate "$address"
+  (umask 077; python3 -c 'import secrets; print(secrets.token_urlsafe(32))' > "$WEB_STATE/token")
+  printf '%s\n' "$port" > "$WEB_STATE/port"
+  printf '%s\n' "$bind" > "$WEB_STATE/bind"
+
+  # A unit of its own: the installation goes on when this SSH session ends.
+  [ -z "${SETUP_DATA_DIR:-}" ] || pass+=("--setenv=SETUP_DATA_DIR=$SETUP_DATA_DIR")
+  systemctl reset-failed "$WEB_UNIT" 2>/dev/null || true
+  systemd-run --quiet --unit="$WEB_UNIT" --collect --description="Hermes Box installer" \
+    --setenv=INSTALL_IMAGE="$1" --setenv=INSTALL_DIR="$2" ${pass[@]+"${pass[@]}"} \
+    python3 "$WEB_STATE/server.py" --bind "$bind" --port "$port" \
+    --cert "$WEB_STATE/tls.crt" --key "$WEB_STATE/tls.key" --token-file "$WEB_STATE/token" ||
+    die "could not start the installer (systemd-run)"
+  for _ in $(seq 1 30); do
+    if python3 -c 'import socket, sys; socket.create_connection(("127.0.0.1", int(sys.argv[1])), timeout=1).close()' "$port" 2>/dev/null; then
+      up=1; break
+    fi
+    sleep 0.5
+  done
+  [ "$up" -eq 1 ] || die "the installer did not start: journalctl -u $WEB_UNIT"
+  ok "running as the service $WEB_UNIT"
+  web_address "$address" "$port" "$bind"
 }
 
 # ── Terminal output ───────────────────────────────────────────────────────────

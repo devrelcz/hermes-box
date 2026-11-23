@@ -1,0 +1,836 @@
+<!doctype html>
+<!-- The page of the installer: one client of the API in installer/server.py.
+     It asks the few questions one at a time, starts the installation and
+     shows how far it is, as one bar and one line. Written for the person who will use the assistant,
+     not for the one who runs the server: what a server administrator needs
+     is behind "Technical details". Everything is in this one file, because
+     it is served before anything else is on the server.
+
+     Shapes: buttons are pills, panels 20px, inputs 12px.
+     One accent colour (mint), light and dark from the system setting. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Hermes Box</title>
+<!-- The mark from the header, with an H: inline, so the page stays one file. -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%233ddc97'/%3E%3Cpath d='M9 8h4v6h6V8h4v16h-4v-6h-6v6H9z' fill='%2308130d'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #f2f5f1; --panel: #ffffff; --ink: #0e1511; --soft: #56615a; --line: #dbe2dc;
+    --accent: #3ddc97; --accent-ink: #08130d; --accent-text: #0a7a50; --accent-wash: #e3f8ee;
+    --bad: #b3261e; --warn: #8a5a00; --field: #f7f9f6; --code: #eef2ee;
+    --shadow: 0 24px 60px -32px rgb(14 60 40 / 0.35);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b100d; --panel: #131a16; --ink: #ecf1ed; --soft: #9aa69f; --line: #26302a;
+      --accent: #3ddc97; --accent-ink: #08130d; --accent-text: #5fe3aa; --accent-wash: #13291f;
+      --bad: #ff8a80; --warn: #e6b450; --field: #0f1512; --code: #0f1512;
+      --shadow: 0 24px 60px -32px rgb(0 0 0 / 0.7);
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; min-height: 100dvh; background: var(--bg); color: var(--ink);
+    font: 17px/1.55 ui-rounded, "SF Pro Rounded", "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  }
+  [hidden] { display: none !important; }
+
+  .shell { max-width: 1120px; margin: 0 auto; padding: 28px 20px 64px; display: grid; gap: 28px; }
+  @media (min-width: 920px) {
+    .shell { grid-template-columns: 5fr 6fr; gap: 64px; padding: 72px 40px 96px; align-items: start; }
+    .side { position: sticky; top: 72px; }
+  }
+
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: -0.01em; }
+  .brand i { width: 14px; height: 14px; border-radius: 4px; background: var(--accent); display: block; }
+  .langs { margin-left: auto; display: flex; gap: 2px; padding: 3px; border: 1px solid var(--line); border-radius: 999px; }
+  .langs button { font: inherit; font-size: 13px; font-weight: 700; letter-spacing: 0.02em; padding: 4px 11px; border-radius: 999px; border: 0; background: transparent; color: var(--soft); cursor: pointer; }
+  .langs button[aria-pressed=true] { background: var(--accent); color: var(--accent-ink); }
+  h1 { font-size: clamp(32px, 4.6vw, 52px); line-height: 1.06; letter-spacing: -0.03em; margin: 28px 0 0; font-weight: 750; text-wrap: balance; }
+  .lead { color: var(--soft); margin: 16px 0 0; max-width: 34ch; font-size: 18px; }
+
+  ol.rail { list-style: none; margin: 36px 0 0; padding: 0; display: flex; gap: 8px; flex-wrap: wrap; }
+  ol.rail li { display: flex; align-items: center; gap: 8px; padding: 6px 14px 6px 8px; border-radius: 999px; color: var(--soft); font-size: 15px; border: 1px solid var(--line); }
+  ol.rail li b { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; background: var(--line); color: var(--soft); font-weight: 700; }
+  ol.rail li.now { color: var(--ink); border-color: var(--accent); background: var(--accent-wash); }
+  ol.rail li.now b, ol.rail li.past b { background: var(--accent); color: var(--accent-ink); }
+  ol.rail li.past { color: var(--ink); }
+  @media (min-width: 920px) { ol.rail { flex-direction: column; align-items: flex-start; gap: 10px; } }
+
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 20px; padding: 28px; box-shadow: var(--shadow); }
+  @media (min-width: 600px) { .panel { padding: 36px; } }
+  .panel + .panel { margin-top: 16px; }
+  .panel.quiet { box-shadow: none; }
+  .view { animation: enter 0.45s cubic-bezier(0.16, 1, 0.3, 1) both; }
+  @keyframes enter { from { opacity: 0; transform: translateY(12px); } }
+
+  h2 { font-size: 24px; line-height: 1.2; letter-spacing: -0.02em; margin: 0; font-weight: 700; text-wrap: balance; }
+  h3 { font-size: 18px; margin: 0 0 6px; font-weight: 700; }
+  p { margin: 10px 0 0; }
+  .soft { color: var(--soft); }
+  .small { font-size: 15px; }
+
+  #ready-block { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
+  #ready-block .hint { margin-top: 0; }
+  #ready-block details { margin-top: 10px; }
+  .address { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 14px; color: var(--ink); }
+
+  label.name { display: block; font-weight: 650; margin: 22px 0 6px; }
+  .input-row { position: relative; }
+  input[type=text], input[type=password] {
+    width: 100%; padding: 13px 14px; font: inherit; color: var(--ink);
+    background: var(--field); border: 1.5px solid var(--line); border-radius: 12px;
+  }
+  input[type=text]:focus, input[type=password]:focus { outline: none; border-color: var(--accent-text); }
+  .input-row input { padding-right: 96px; }
+  .peek { position: absolute; right: 6px; top: 6px; bottom: 6px; padding: 0 14px; border-radius: 8px; border: 0; background: transparent; color: var(--accent-text); font: inherit; font-size: 15px; font-weight: 650; cursor: pointer; }
+  .hint { font-size: 15px; color: var(--soft); margin-top: 8px; }
+  .note { font-size: 15px; margin-top: 10px; }
+  .note.ok { color: var(--accent-text); }
+  .note.warn { color: var(--warn); }
+  .note.bad { color: var(--bad); }
+
+  .actions { display: flex; gap: 12px; align-items: center; margin-top: 28px; flex-wrap: wrap; }
+  button.go, a.go {
+    font: inherit; font-weight: 700; padding: 13px 26px; border-radius: 999px; border: 0; cursor: pointer;
+    background: var(--accent); color: var(--accent-ink); text-decoration: none; display: inline-block; white-space: nowrap;
+    transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), filter 0.15s;
+  }
+  button.go:hover, a.go:hover { filter: brightness(1.06); }
+  button.go:active, a.go:active { transform: scale(0.98); }
+  button.go:disabled { opacity: 0.5; cursor: default; }
+  button.plain { font: inherit; font-weight: 650; padding: 13px 18px; border-radius: 999px; border: 1.5px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; white-space: nowrap; }
+  button.plain:disabled { opacity: 0.5; cursor: default; }
+  :focus-visible { outline: 2px solid var(--accent-text); outline-offset: 3px; }
+
+  .bar { height: 10px; border-radius: 999px; background: var(--line); overflow: hidden; margin-top: 24px; }
+  .bar i { display: block; height: 100%; width: 0; border-radius: 999px; background: var(--accent); transition: width 1s linear; position: relative; overflow: hidden; }
+  .bar.live i::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.55), transparent); transform: translateX(-100%); animation: sweep 1.6s ease-in-out infinite; }
+  @keyframes sweep { to { transform: translateX(100%); } }
+  .bar.stopped i { background: var(--bad); }
+
+  .now-line { margin-top: 14px; font-weight: 650; display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+  .now-line .when { font-size: 14px; font-weight: 400; color: var(--soft); font-variant-numeric: tabular-nums; }
+
+  details { margin-top: 22px; }
+  details summary { cursor: pointer; color: var(--soft); font-size: 15px; font-weight: 650; }
+  pre.log { margin: 12px 0 0; padding: 14px; background: var(--code); border: 1px solid var(--line); border-radius: 12px; font: 12.5px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace; max-height: 320px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+  code.inline { font: 13px ui-monospace, "SF Mono", Menlo, Consolas, monospace; background: var(--code); padding: 2px 6px; border-radius: 6px; overflow-wrap: anywhere; }
+  canvas.qr { display: block; margin-top: 16px; width: 240px; max-width: 100%; height: auto; image-rendering: pixelated; border-radius: 12px; }
+  a.text { color: var(--accent-text); font-weight: 650; overflow-wrap: anywhere; }
+  .skeleton { height: 220px; border-radius: 20px; background: linear-gradient(90deg, var(--line), var(--panel), var(--line)); background-size: 200% 100%; animation: shimmer 1.4s linear infinite; opacity: 0.6; }
+  @keyframes shimmer { to { background-position: -200% 0; } }
+
+  @media (prefers-reduced-motion: reduce) {
+    .view, .skeleton, .bar.live i::after { animation: none; }
+    .bar i { transition: none; }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+  <header class="side">
+    <div class="brand"><i aria-hidden="true"></i>Hermes Box
+      <div class="langs" role="group" aria-label="Jazyk / Language">
+        <button type="button" data-lang="cs" lang="cs" aria-label="Česky">CZ</button>
+        <button type="button" data-lang="en" lang="en" aria-label="English">EN</button>
+      </div>
+    </div>
+    <h1 id="headline"></h1>
+    <p class="lead" id="lead"></p>
+    <ol class="rail" id="rail" hidden></ol>
+  </header>
+
+  <main>
+    <div class="skeleton" id="loading" aria-hidden="true"></div>
+
+    <section class="panel view" id="problem" hidden role="alert">
+      <h2 id="problem-title"></h2>
+      <p class="soft" id="problem-text"></p>
+    </section>
+
+    <!-- Question: the address -->
+    <section class="panel view" id="q-domain" hidden>
+      <form id="form-domain" novalidate>
+        <h2 data-t="domain.title"></h2>
+        <div id="own-home"></div>
+        <div id="own-block">
+          <label class="name" for="domain" data-t="domain.label"></label>
+          <input type="text" id="domain" autocomplete="off" autocapitalize="none" spellcheck="false" inputmode="url" placeholder="asistent.example.com">
+          <p class="hint" id="domain-hint"></p>
+          <p class="note" id="domain-note" hidden></p>
+        </div>
+        <p class="note bad" id="domain-error" hidden></p>
+        <div class="actions"><button class="go" type="submit" id="domain-next"></button></div>
+      </form>
+    </section>
+
+    <!-- Question: the sign-in -->
+    <section class="panel view" id="q-login" hidden>
+      <form id="form-login" novalidate>
+        <h2 data-t="login.title"></h2>
+        <p class="soft" data-t="login.lead"></p>
+        <label class="name" for="user" data-t="login.user"></label>
+        <input type="text" id="user" value="admin" autocomplete="username" autocapitalize="none" spellcheck="false">
+        <label class="name" for="password" data-t="login.password"></label>
+        <div class="input-row">
+          <input type="password" id="password" autocomplete="new-password" minlength="12">
+          <button type="button" class="peek" id="peek" aria-pressed="false"></button>
+        </div>
+        <p class="hint" id="password-hint" aria-live="polite"></p>
+        <p class="hint" data-t="login.keep"></p>
+        <div id="ready-block" hidden>
+          <p class="hint" id="ready-line"></p>
+          <details id="own-details">
+            <summary data-t="domain.own"></summary>
+            <div id="own-slot"></div>
+          </details>
+        </div>
+        <p class="note bad" id="login-error" hidden></p>
+        <div class="actions">
+          <button class="go" type="submit" id="login-next"></button>
+          <button class="plain" type="button" id="login-back" data-t="back" hidden></button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Nothing to ask: an installation that is already there -->
+    <section class="panel view" id="ready" hidden>
+      <h2 data-t="ready.title"></h2>
+      <p class="soft" data-t="ready.text"></p>
+      <div class="actions"><button class="go" id="ready-go" data-t="ready.go"></button></div>
+    </section>
+
+    <!-- Progress -->
+    <section class="panel view" id="progress" hidden>
+      <h2 id="progress-title"></h2>
+      <p class="soft" id="progress-text"></p>
+      <div class="bar" id="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100"><i></i></div>
+      <p class="now-line" id="now-line" aria-live="polite"><span id="now-text"></span><span class="when" id="now-when"></span></p>
+      <div class="actions" id="retry-row" hidden><button class="go" id="retry" data-t="retry"></button></div>
+      <details id="log-details" hidden>
+        <summary data-t="details"></summary>
+        <pre class="log" id="log" tabindex="0"></pre>
+      </details>
+    </section>
+
+    <!-- Done -->
+    <section class="panel view" id="done" hidden>
+      <h2 data-t="done.title"></h2>
+      <p class="soft" id="done-signin"></p>
+      <div class="actions"><a class="go" id="open" target="_blank" rel="noopener" data-t="done.open"></a></div>
+      <p class="hint"><span class="address" id="done-address"></span></p>
+      <p class="hint" id="done-model" hidden data-t="done.model"></p>
+      <p class="note warn" id="done-slow" hidden data-t="done.slow"></p>
+    </section>
+    <section class="panel quiet view" id="phone" hidden>
+      <h3 data-t="phone.title"></h3>
+      <p class="soft small" data-t="phone.text"></p>
+      <p class="hint" id="phone-left"></p>
+      <canvas class="qr" id="qr" hidden></canvas>
+      <p class="note bad" id="phone-error" hidden></p>
+      <div class="actions"><button class="plain" id="phone-toggle"></button></div>
+    </section>
+    <section class="panel quiet view" id="after" hidden>
+      <details id="admin" style="margin-top:0">
+        <summary data-t="admin.title"></summary>
+        <p class="soft small" data-t="admin.text"></p>
+        <p class="small"><code class="inline" id="admin-key"></code></p>
+        <p class="small"><code class="inline" id="admin-instance"></code></p>
+      </details>
+      <p class="soft small" style="margin-top:18px" data-t="off.text"></p>
+      <div class="actions" style="margin-top:14px"><button class="plain" id="off" data-t="off.go"></button></div>
+    </section>
+  </main>
+</div>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+
+// ── Words ────────────────────────────────────────────────────────────────────
+// Plain language for the person who will use the assistant. Czech for a Czech
+// or Slovak browser, English otherwise; the switch in the corner overrides
+// that and is remembered in this browser.
+const WORDS = {
+  en: {
+    "head.start": "Your own AI assistant, ready in a few minutes.",
+    "lead.start": "Choose your sign-in, then the installation runs by itself.",
+    "head.run": "We are setting up your assistant.",
+    "lead.run": "It usually takes 10 to 15 minutes. You can close this page, the installation keeps going.",
+    "head.fail": "The installation stopped.",
+    "lead.fail": "Nothing is lost. Trying again continues where it stopped.",
+    "head.done": "Your assistant is ready.",
+    "lead.done": "Open it in the browser and sign in.",
+    "head.off": "The installer is switched off.",
+    "lead.off": "You can close this page.",
+    "rail.domain": "Address", "rail.login": "Sign-in", "rail.install": "Installation",
+    "domain.title": "At which address do you want to open your assistant?",
+    "domain.ready": "Your assistant gets the address {address}.",
+    "domain.own": "I want my own domain",
+    "domain.label": "Your domain",
+    "domain.hint": "Point the domain at this server first: {ip}. Your domain provider calls it an A record.",
+    "domain.hintNoIp": "Point the domain at this server first. Your domain provider calls it an A record.",
+    "domain.ok": "The domain points at this server.",
+    "domain.found": "The domain points at {found}.",
+    "domain.nowhere": "This domain does not point anywhere yet. You can continue, but the assistant opens only after you point it here.",
+    "domain.elsewhere": "This domain points at another server ({found}). You can continue, but the assistant opens only after you point it at {ip}.",
+    "domain.empty": "Type your domain, for example assistant.yourcompany.com.",
+    "domain.wrong": "Type only the domain, without https:// and without anything after a slash.",
+    "login.title": "Choose your sign-in",
+    "login.lead": "You will use it in the browser and in the mobile app.",
+    "login.user": "Name", "login.password": "Password",
+    "login.keep": "We never store the password in readable form, so keep it somewhere safe.",
+    "login.short": "{n} more characters to go.", "login.short1": "One more character to go.",
+    "login.good": "Long enough.", "login.min": "At least 12 characters.",
+    "login.noUser": "Type a name to sign in with.",
+    "login.badUser": "Use letters, digits and the characters . _ @ - in the name.",
+    "show": "Show", "hide": "Hide", "back": "Back", "next": "Continue", "install": "Install", "save": "Save and continue",
+    "ready.title": "Hermes is already installed here",
+    "ready.text": "We can check that everything is running as it should.",
+    "ready.go": "Check it",
+    "run.title": "Installing", "run.text": "You do not have to do anything now.",
+    "fail.title": "Something went wrong", "fail.text": "Trying again usually helps. If it does not, send the technical details below to whoever looks after your server.",
+    "now.prepare": "Getting the server ready", "now.download": "Downloading your assistant, this takes the longest", "now.start": "Setting it up and starting it",
+    "retry": "Try again", "details": "Technical details",
+    "done.title": "Open your assistant", "done.open": "Open Hermes",
+    "done.signin": "Sign in as {user} with the password you chose.",
+    "done.signinOld": "Sign in with the name and password you already have.",
+    "done.slow": "The address may need a few more minutes before it opens.",
+    "phone.title": "Connect your phone",
+    "phone.text": "Scan the code in the Hermes Hobs app and you are signed in. The code contains your password, so do not take a screenshot of it.",
+    "phone.show": "Show the code", "phone.hide": "Hide the code",
+    "phone.left": "The code can be shown for {n} more min. Later, whoever looks after the server can make a new one.",
+    "done.model": "After you sign in, choose the AI model in the assistant's settings. It starts answering once that is done.",
+    "admin.title": "For whoever looks after the server",
+    "admin.text": "Keep a copy of these two things outside the server. Without the first one the backups cannot be read; the second one holds this installation's settings.",
+    "off.text": "The installer switches itself off within an hour.", "off.go": "Switch it off now",
+    "bad.link.title": "This link is not complete",
+    "bad.link.text": "Open the whole address shown on the server, including the part after the # sign.",
+    "bad.gone.title": "We lost the connection to the installer",
+    "bad.gone.text": "This page keeps trying. If the installation was already done, the installer has switched itself off and you can close the page. If it had not started yet, the link has expired: run the installation command on the server again.",
+  },
+  cs: {
+    "head.start": "Váš vlastní AI asistent, hotový za pár minut.",
+    "lead.start": "Zvolte si přihlášení a instalace pak běží sama.",
+    "head.run": "Připravujeme vašeho asistenta.",
+    "lead.run": "Obvykle to trvá 10 až 15 minut. Stránku můžete zavřít, instalace poběží dál.",
+    "head.fail": "Instalace se zastavila.",
+    "lead.fail": "O nic jste nepřišli. Další pokus naváže tam, kde to skončilo.",
+    "head.done": "Váš asistent je připravený.",
+    "lead.done": "Otevřete ho v prohlížeči a přihlaste se.",
+    "head.off": "Instalátor je vypnutý.",
+    "lead.off": "Tuhle stránku můžete zavřít.",
+    "rail.domain": "Adresa", "rail.login": "Přihlášení", "rail.install": "Instalace",
+    "domain.title": "Na jaké adrese chcete asistenta otevírat?",
+    "domain.ready": "Asistent dostane adresu {address}.",
+    "domain.own": "Chci vlastní doménu",
+    "domain.label": "Vaše doména",
+    "domain.hint": "Doménu nejdřív nasměrujte na tento server: {ip}. U správce domény se tomu říká záznam A.",
+    "domain.hintNoIp": "Doménu nejdřív nasměrujte na tento server. U správce domény se tomu říká záznam A.",
+    "domain.ok": "Doména míří na tento server.",
+    "domain.found": "Doména míří na {found}.",
+    "domain.nowhere": "Tahle doména zatím nikam nemíří. Můžete pokračovat, ale asistent se otevře, až ji nasměrujete sem.",
+    "domain.elsewhere": "Tahle doména míří na jiný server ({found}). Můžete pokračovat, ale asistent se otevře, až ji nasměrujete na {ip}.",
+    "domain.empty": "Napište svou doménu, například asistent.vasefirma.cz.",
+    "domain.wrong": "Napište jen doménu, bez https:// a bez čehokoli za lomítkem.",
+    "login.title": "Zvolte si přihlášení",
+    "login.lead": "Budete ho používat v prohlížeči i v mobilní aplikaci.",
+    "login.user": "Jméno", "login.password": "Heslo",
+    "login.keep": "Heslo nikdy neukládáme v čitelné podobě, proto si ho bezpečně uložte.",
+    "login.short": "Chybí ještě {n} znaků.", "login.short234": "Chybí ještě {n} znaky.", "login.short1": "Chybí ještě jeden znak.",
+    "login.good": "Dost dlouhé.", "login.min": "Aspoň 12 znaků.",
+    "login.noUser": "Napište jméno, kterým se budete přihlašovat.",
+    "login.badUser": "Ve jménu použijte písmena, číslice a znaky . _ @ -",
+    "show": "Zobrazit", "hide": "Skrýt", "back": "Zpět", "next": "Pokračovat", "install": "Nainstalovat", "save": "Uložit a pokračovat",
+    "ready.title": "Hermes už tady je nainstalovaný",
+    "ready.text": "Můžeme zkontrolovat, že všechno běží, jak má.",
+    "ready.go": "Zkontrolovat",
+    "run.title": "Instalujeme", "run.text": "Teď nemusíte nic dělat.",
+    "fail.title": "Něco se nepovedlo", "fail.text": "Většinou pomůže zkusit to znovu. Když ne, pošlete technické podrobnosti níže tomu, kdo se vám stará o server.",
+    "now.prepare": "Připravujeme server", "now.download": "Stahujeme asistenta, tohle trvá nejdéle", "now.start": "Nastavujeme a spouštíme",
+    "retry": "Zkusit znovu", "details": "Technické podrobnosti",
+    "done.title": "Otevřete svého asistenta", "done.open": "Otevřít Hermes",
+    "done.signin": "Přihlaste se jako {user} heslem, které jste si zvolili.",
+    "done.signinOld": "Přihlaste se jménem a heslem, které už máte.",
+    "done.slow": "Adresa může potřebovat ještě pár minut, než se otevře.",
+    "phone.title": "Připojte telefon",
+    "phone.text": "Naskenujte kód v aplikaci Hermes Hobs a jste přihlášeni. Kód obsahuje vaše heslo, proto si ho nefoťte.",
+    "phone.show": "Zobrazit kód", "phone.hide": "Skrýt kód",
+    "phone.left": "Kód jde zobrazit ještě {n} min. Později vám nový vytvoří ten, kdo se stará o server.",
+    "done.model": "Po přihlášení si v nastavení asistenta vyberte AI model. Jakmile to uděláte, začne odpovídat.",
+    "admin.title": "Pro toho, kdo se stará o server",
+    "admin.text": "Tyhle dvě věci si uložte i mimo server. Bez první se nedají přečíst zálohy, ve druhé je nastavení téhle instalace.",
+    "off.text": "Instalátor se do hodiny sám vypne.", "off.go": "Vypnout hned",
+    "bad.link.title": "Odkaz není úplný",
+    "bad.link.text": "Otevřete celou adresu, kterou vypsal server, včetně části za znakem #.",
+    "bad.gone.title": "Ztratili jsme spojení s instalátorem",
+    "bad.gone.text": "Stránka to zkouší dál. Pokud už byla instalace hotová, instalátor se sám vypnul a stránku můžete zavřít. Pokud ještě nezačala, odkaz přestal platit: spusťte na serveru instalační příkaz znovu.",
+  },
+};
+function browserLang() {
+  for (const tag of navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || ""]) {
+    if (/^(cs|sk)\b/i.test(tag)) return "cs";
+    if (/^en\b/i.test(tag)) return "en";
+  }
+  return "en";
+}
+let lang = browserLang();
+try {
+  const chosen = localStorage.getItem("lang");
+  if (chosen === "cs" || chosen === "en") lang = chosen;
+} catch (error) { /* private mode */ }
+function t(key, values) {
+  let value = WORDS[lang][key] || WORDS.en[key] || key;
+  for (const name in values || {}) value = value.replaceAll("{" + name + "}", values[name]);
+  return value;
+}
+// The words that are in the page from the start; the rest is written by paint().
+function words() {
+  document.documentElement.lang = lang;
+  for (const node of document.querySelectorAll("[data-t]")) node.textContent = t(node.dataset.t);
+  for (const button of document.querySelectorAll("[data-lang]")) button.setAttribute("aria-pressed", String(button.dataset.lang === lang));
+}
+words();
+
+// ── The API ──────────────────────────────────────────────────────────────────
+// The token comes in the address, after #, and never goes to the server as
+// part of a URL. It is kept for this tab and taken out of the address bar.
+let token = "";
+try { token = sessionStorage.getItem("token") || ""; } catch (error) { /* private mode */ }
+if (location.hash.length > 1) {
+  token = decodeURIComponent(location.hash.slice(1));
+  try { sessionStorage.setItem("token", token); } catch (error) { /* private mode */ }
+  history.replaceState(null, "", location.pathname);
+}
+
+async function api(method, path, body) {
+  const response = await fetch(path, {
+    method,
+    headers: Object.assign({ Authorization: "Bearer " + token }, body ? { "Content-Type": "application/json" } : {}),
+    body: body ? JSON.stringify(body) : undefined,
+    cache: "no-store",
+  });
+  let data = {};
+  try { data = await response.json(); } catch (error) { /* not JSON */ }
+  if (!response.ok) {
+    const failure = new Error(data.error || ("HTTP " + response.status));
+    failure.status = response.status;
+    throw failure;
+  }
+  return data;
+}
+
+// ── What is on the screen ────────────────────────────────────────────────────
+const VIEWS = ["loading", "problem", "q-domain", "q-login", "ready", "progress", "done", "phone", "after"];
+let state = null;       // the last answer of /api/state
+let shown = "";         // which screen is up
+let question = 0;       // which question of the wizard
+let draft = {};         // answers collected so far, not sent yet
+let logNext = 0;
+let failures = 0;
+let off = false;
+let busy = false;
+let trouble = "";       // which problem is shown, if any
+let headKind = "start";
+
+function show(id, visible) { $(id).hidden = !visible; }
+function note(id, value, kind) {
+  const node = $(id);
+  node.hidden = !value;
+  node.textContent = value || "";
+  if (kind) node.className = "note " + kind;
+}
+function head(kind) {
+  headKind = kind;
+  $("headline").textContent = t("head." + kind);
+  $("lead").textContent = t("lead." + kind);
+}
+function screen(name, panels) {
+  if (shown === name) return false;
+  shown = name;
+  for (const id of VIEWS) show(id, panels.includes(id));
+  return true;
+}
+
+// The questions still to ask: all of them before the start, later only what
+// the installation is waiting for.
+function questions() {
+  if (!state) return [];
+  const wanted = state.phase === "idle" ? state.needs : state.missing;
+  return ["domain", "login"].filter((name) =>
+    wanted.includes(name) && !(name in draft && draft[name].sent) && !(name === "domain" && folded(wanted)));
+}
+// Where the server can give the assistant an address by itself, the address
+// is not a question: the sign-in screen only offers an own domain instead.
+function folded(wanted) {
+  return Boolean(state.server.sslip) && wanted.includes("domain") && wanted.includes("login");
+}
+function asking() {
+  return state && ["idle", "running", "waiting"].includes(state.phase) && questions().length > 0;
+}
+
+function rail(current) {
+  const names = [...(state.needs.includes("domain") && !folded(state.needs) ? ["domain"] : []), ...(state.needs.includes("login") ? ["login"] : []), "install"];
+  const list = $("rail");
+  list.replaceChildren();
+  const at = names.indexOf(current);
+  names.forEach((name, index) => {
+    const item = document.createElement("li");
+    item.className = index < at ? "past" : index === at ? "now" : "";
+    if (index === at) item.setAttribute("aria-current", "step");
+    const number = document.createElement("b");
+    number.textContent = index < at ? "✓" : String(index + 1);
+    number.setAttribute("aria-hidden", "true");
+    item.append(number, t("rail." + name));
+    list.append(item);
+  });
+  show("rail", current !== "none");
+}
+
+function duration(seconds) {
+  seconds = Math.max(0, Math.round(seconds));
+  return seconds >= 60 ? Math.floor(seconds / 60) + ":" + String(seconds % 60).padStart(2, "0") : seconds + " s";
+}
+
+// How long each stage usually takes, in seconds: enough for a bar that moves
+// honestly, without pretending to know a percentage.
+const USUAL = { docker: 50, download: 110, extract: 5, setup: 270 };
+// What is going on, in one line; the steps themselves are a technical detail.
+const NOW = { docker: "now.prepare", download: "now.download", extract: "now.download", setup: "now.start" };
+
+function renderProgress() {
+  const failed = state.phase === "failed";
+  head(failed ? "fail" : "run");
+  rail("install");
+  $("progress-title").textContent = t(failed ? "fail.title" : "run.title");
+  $("progress-text").textContent = t(failed ? "fail.text" : "run.text");
+  show("retry-row", failed);
+  // The log is for whoever has to find out what went wrong, so only then.
+  show("log-details", failed);
+  if (failed) $("log-details").open = true;
+
+  let total = 0, reached = 0, first = null;
+  const current = state.steps.find((step) => step.status === "running") || state.steps.find((step) => step.status === "pending");
+  for (const step of state.steps) {
+    const usual = USUAL[step.id] || 30;
+    total += usual;
+    if (step.started && !first) first = step.started;
+    if (step.status === "done") reached += usual;
+    else if (step.status === "running") reached += usual * Math.min((state.now - step.started) / usual, 0.92);
+  }
+  show("now-line", !failed);
+  $("now-text").textContent = current ? t(NOW[current.id] || "now.start") : "";
+  $("now-when").textContent = first ? duration(state.now - first) : "";
+  const percent = Math.round((reached / total) * 100);
+  const bar = $("bar");
+  bar.className = "bar" + (failed ? " stopped" : " live");
+  bar.setAttribute("aria-valuenow", String(percent));
+  bar.firstElementChild.style.width = percent + "%";
+}
+
+function renderQuestion() {
+  const list = questions();
+  question = Math.min(question, list.length - 1);
+  const name = list[question];
+  head("start");
+  rail(name);
+  const last = question === list.length - 1;
+  const label = state.phase === "idle" ? (last ? t("install") : t("next")) : (last ? t("save") : t("next"));
+  if (name === "domain") {
+    if (screen("q-domain", ["q-domain"])) {
+      $("own-home").after($("own-block"));
+      $("domain-hint").textContent = state.server.public ? t("domain.hint", { ip: state.server.ip }) : t("domain.hintNoIp");
+    }
+    $("domain-next").textContent = label;
+  } else {
+    if (screen("q-login", ["q-login"])) {
+      passwordHint();
+      const wanted = state.phase === "idle" ? state.needs : state.missing;
+      show("ready-block", folded(wanted));
+      if (folded(wanted)) {
+        $("own-slot").append($("own-block"));
+        $("ready-line").textContent = t("domain.ready", { address: state.server.sslip });
+        $("domain-hint").textContent = t("domain.hint", { ip: state.server.ip });
+      }
+    }
+    $("login-next").textContent = label;
+    show("login-back", question > 0);
+  }
+}
+
+function renderDone() {
+  head("done");
+  show("rail", false);
+  // The code for the phone can be shown only for a while after the installation.
+  const fresh = screen("done", ["done", "after"]);
+  show("phone", state.can_pair);
+  if (state.can_pair) {
+    $("phone-left").textContent = t("phone.left", { n: Math.max(1, Math.ceil((state.pair_until - state.now) / 60)) });
+  } else if (!$("qr").hidden) {
+    hideCode();
+  }
+  if (!fresh) return;
+  const summary = state.summary;
+  $("open").href = summary.url;
+  $("done-address").textContent = summary.url;
+  $("done-signin").textContent = state.answers.user ? t("done.signin", { user: state.answers.user }) : t("done.signinOld");
+  const setup = state.steps[state.steps.length - 1];
+  show("done-slow", setup.substeps.some((sub) => sub.status === "failed"));
+  $("phone-toggle").textContent = t("phone.show");
+  show("done-model", summary.model !== "yes");
+  $("admin-key").textContent = summary.key_file;
+  $("admin-instance").textContent = summary.instance + "/";
+  show("admin", state.install.existing !== "1");
+}
+
+function render(current) {
+  state = current;
+  const log = $("log");
+  if (current.log.from > logNext) log.textContent = "";
+  if (current.log.lines.length) {
+    const atEnd = log.scrollHeight - log.scrollTop - log.clientHeight < 40;
+    log.append(current.log.lines.join("\n") + "\n");
+    if (atEnd) log.scrollTop = log.scrollHeight;
+  }
+  logNext = current.log.next;
+  paint();
+}
+
+// Draw the screen that fits the state; also after the language was switched.
+function paint() {
+  const current = state;
+  if (current.phase === "done") return renderDone();
+  if (asking()) return renderQuestion();
+  if (current.phase === "idle") {
+    head("start");
+    show("rail", false);
+    screen("ready", ["ready"]);
+    return undefined;
+  }
+  screen("progress", ["progress"]);
+  renderProgress();
+  return undefined;
+}
+
+function problem(kind) {
+  trouble = kind;
+  if (!kind) { if (shown === "problem") shown = ""; show("problem", false); return; }
+  $("problem-title").textContent = t("bad." + kind + ".title");
+  $("problem-text").textContent = t("bad." + kind + ".text");
+  if (!state) { screen("problem", ["problem"]); head("start"); } else show("problem", true);
+}
+
+async function poll() {
+  if (off) return;
+  let delay = 3000;
+  try {
+    const current = await api("GET", "/api/state?log_from=" + logNext);
+    failures = 0;
+    problem("");
+    render(current);
+    if (current.phase === "running") delay = 1000;
+    if (current.log.lines.length === 500) delay = 50;
+  } catch (error) {
+    if (error.status === 401) { problem("link"); return; }
+    failures += 1;
+    if (failures >= 3) problem("gone");
+  }
+  setTimeout(poll, delay);
+}
+
+// ── The questions ────────────────────────────────────────────────────────────
+function domainTyped() {
+  const value = $("domain").value.trim().toLowerCase();
+  if (!value) return { error: t("domain.empty") };
+  if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/.test(value)) return { error: t("domain.wrong") };
+  return { value };
+}
+
+let checking = 0;
+async function checkDomain() {
+  const name = $("domain").value.trim().toLowerCase();
+  if (!name) return;
+  const mine = ++checking;
+  try {
+    const found = await api("GET", "/api/domain?name=" + encodeURIComponent(name));
+    if (mine !== checking) return;
+    const where = found.addresses.join(", ");
+    if (!found.addresses.length) note("domain-note", t("domain.nowhere"), "warn");
+    else if (found.matches === false) note("domain-note", t("domain.elsewhere", { found: where, ip: found.server }), "warn");
+    else if (found.matches === true) note("domain-note", t("domain.ok"), "ok");
+    else note("domain-note", t("domain.found", { found: where }), "ok");
+  } catch (error) {
+    if (mine === checking) note("domain-note", "");
+  }
+}
+$("domain").addEventListener("input", () => { checking++; note("domain-note", ""); note("domain-error", ""); note("login-error", ""); });
+$("domain").addEventListener("blur", checkDomain);
+
+function passwordHint() {
+  const missing = 12 - $("password").value.length;
+  const hint = $("password-hint");
+  if ($("password").value.length === 0) hint.textContent = t("login.min");
+  else if (missing <= 0) hint.textContent = t("login.good");
+  else if (missing === 1) hint.textContent = t("login.short1");
+  else hint.textContent = t(lang === "cs" && missing < 5 ? "login.short234" : "login.short", { n: missing });
+  $("peek").textContent = $("password").type === "password" ? t("show") : t("hide");
+}
+$("password").addEventListener("input", () => { passwordHint(); note("login-error", ""); });
+$("peek").addEventListener("click", () => {
+  const field = $("password");
+  field.type = field.type === "password" ? "text" : "password";
+  $("peek").setAttribute("aria-pressed", String(field.type === "text"));
+  passwordHint();
+});
+
+// The answers go to the server together, after the last question.
+async function advance() {
+  const list = questions();
+  if (question < list.length - 1) {
+    question += 1;
+    renderQuestion();
+    return;
+  }
+  const body = {};
+  if (draft.domain) body.domain = draft.domain.value;
+  if (draft.login) { body.user = draft.login.user; body.password = draft.login.password; }
+  busy = true;
+  try {
+    const current = await api("POST", state.phase === "idle" ? "/api/start" : "/api/answers", body);
+    for (const name in draft) draft[name].sent = true;
+    if (draft.login) draft.login.password = "";
+    $("password").value = "";
+    question = 0;
+    logNext = 0;
+    $("log").textContent = "";
+    render(current);
+  } catch (error) {
+    note(shown === "q-domain" ? "domain-error" : "login-error", error.message, "bad");
+  } finally {
+    busy = false;
+  }
+}
+
+$("form-domain").addEventListener("submit", (event) => {
+  event.preventDefault();
+  if (busy) return;
+  const typed = domainTyped();
+  if (typed.error) { note("domain-error", typed.error, "bad"); return; }
+  note("domain-error", "");
+  draft.domain = { value: typed.value };
+  advance();
+});
+$("form-login").addEventListener("submit", (event) => {
+  event.preventDefault();
+  if (busy) return;
+  const user = $("user").value.trim();
+  const password = $("password").value;
+  if (!user) { note("login-error", t("login.noUser"), "bad"); return; }
+  if (!/^[A-Za-z0-9._@-]{1,64}$/.test(user)) { note("login-error", t("login.badUser"), "bad"); return; }
+  if (password.length < 12) { note("login-error", t("login.min"), "bad"); $("password").focus(); return; }
+  if (!$("ready-block").hidden) {
+    // The address the server offers, unless an own domain was typed in.
+    let value = state.server.sslip;
+    if ($("own-details").open) {
+      const typed = domainTyped();
+      if (typed.error) { note("login-error", typed.error, "bad"); $("domain").focus(); return; }
+      value = typed.value;
+    }
+    draft.domain = { value };
+  }
+  note("login-error", "");
+  draft.login = { user, password };
+  advance();
+});
+$("login-back").addEventListener("click", () => {
+  delete draft.domain;
+  question = 0;
+  renderQuestion();
+});
+
+$("ready-go").addEventListener("click", async () => {
+  if (busy) return;
+  busy = true;
+  try { logNext = 0; render(await api("POST", "/api/start", {})); } catch (error) { /* the next poll shows it */ } finally { busy = false; }
+});
+$("retry").addEventListener("click", async () => {
+  $("retry").disabled = true;
+  try {
+    const current = await api("POST", "/api/retry", {});
+    logNext = 0;
+    $("log").textContent = "";
+    $("log-details").open = false;
+    render(current);
+  } catch (error) { /* the next poll shows it */ } finally { $("retry").disabled = false; }
+});
+
+// ── After the installation ───────────────────────────────────────────────────
+function hideCode() {
+  const canvas = $("qr");
+  canvas.width = canvas.height = 1;
+  show("qr", false);
+  $("phone-toggle").textContent = t("phone.show");
+}
+$("phone-toggle").addEventListener("click", async () => {
+  if (!$("qr").hidden) { hideCode(); return; }
+  note("phone-error", "");
+  $("phone-toggle").disabled = true;
+  try {
+    const { rows } = await api("GET", "/api/pair");
+    const canvas = $("qr");
+    const scale = 6;
+    canvas.width = canvas.height = rows.length * scale;
+    const context = canvas.getContext("2d");
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.fillStyle = "#000000";
+    rows.forEach((row, y) => {
+      for (let x = 0; x < row.length; x++) if (row[x] === "1") context.fillRect(x * scale, y * scale, scale, scale);
+    });
+    show("qr", true);
+    $("phone-toggle").textContent = t("phone.hide");
+  } catch (error) {
+    note("phone-error", error.message, "bad");
+  } finally {
+    $("phone-toggle").disabled = false;
+  }
+});
+$("off").addEventListener("click", async () => {
+  $("off").disabled = true;
+  try { await api("POST", "/api/finish", {}); } catch (error) { $("off").disabled = false; return; }
+  off = true;
+  hideCode();
+  try { sessionStorage.removeItem("token"); } catch (error) { /* private mode */ }
+  head("off");
+  for (const id of ["phone", "after", "problem"]) show(id, false);
+});
+
+for (const button of document.querySelectorAll("[data-lang]")) {
+  button.addEventListener("click", () => {
+    if (button.dataset.lang === lang) return;
+    lang = button.dataset.lang;
+    try { localStorage.setItem("lang", lang); } catch (error) { /* private mode */ }
+    words();
+    head(headKind);
+    passwordHint();
+    for (const id of ["domain-note", "domain-error", "login-error", "phone-error"]) note(id, "");
+    if (trouble) problem(trouble);
+    if (state && !off) {
+      const code = !$("qr").hidden;
+      shown = "";          // every screen writes its own words again
+      paint();
+      if (code) $("phone-toggle").textContent = t("phone.hide");
+    }
+  });
+}
+
+head("start");
+if (!token) problem("link"); else poll();
+</script>
+</body>
+</html>

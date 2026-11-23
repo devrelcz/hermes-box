@@ -32,7 +32,9 @@ jobs:
         run: |
           shellcheck --severity=error \
             get.sh install.sh setup.sh pair.sh check.sh sops.sh lib/ui.sh \
-            backup/*.sh monitor/*.sh deploy/*.sh docker/*.sh
+            backup/*.sh monitor/*.sh deploy/*.sh docker/*.sh installer/*.sh
+          python3 -m py_compile installer/server.py
+          installer/sums.sh --check
 
       - name: Name and version
         id: name
