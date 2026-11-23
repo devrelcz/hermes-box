@@ -373,7 +373,7 @@ def make_handler(installer, token, page, cleanup):
                     self.send_header("X-Frame-Options", "DENY")
                     self.send_header(
                         "Content-Security-Policy",
-                        "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; "
+                        "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; "
                         "connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
                     )
                     self.end_headers()
