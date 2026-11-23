@@ -14,9 +14,13 @@
 #
 # The installer is temporary: its certificate is made for this run (the
 # browser warns about it once; the fingerprint is printed here to compare),
-# its address carries a one-time token, and it stops when the installation is
-# finished. It runs as the systemd unit hermes-box-installer, so it survives
-# a lost SSH connection.
+# its address carries a one-time token that is good for two hours, and it
+# stops when the installation is finished. It runs as the systemd unit
+# hermes-box-installer, so it survives a lost SSH connection.
+#
+# The installer's files are downloaded from the same release as this script
+# and checked against the SHA-256 written below (installer/sums.sh); files
+# that differ are not run.
 #
 # Options go after `bash -s --`:
 #
@@ -39,7 +43,9 @@
 #   INSTALL_DIR=/opt/hermes-box                      where the files go
 #   INSTALL_PORT=8443                                the installer's port
 #   INSTALL_BIND=0.0.0.0                             127.0.0.1: reachable through an SSH tunnel only
-#   INSTALL_SOURCE=<url or directory>                where the installer's own files come from
+#   INSTALL_REF=v1.4.0                               the release the installer's files come from;
+#                                                    by default the one INSTALL_IMAGE names, else master
+#   INSTALL_SOURCE=<url or directory>                the same, as a whole address or a directory
 #   SETUP_*                                          answers for ./setup.sh, see its header
 #
 # Docker is installed with Docker's own script (https://get.docker.com), which
@@ -166,14 +172,24 @@ and prints its address; the installation is started and watched there.
 
 Environment: INSTALL_IMAGE (default ghcr.io/devrelcz/hermes-box:1),
 INSTALL_DIR (default /opt/hermes-box), INSTALL_PORT (default 8443),
-INSTALL_BIND (default 0.0.0.0), SETUP_* (answers for the wizard; with
-SETUP_DOMAIN the installation is unattended).
+INSTALL_BIND (default 0.0.0.0), INSTALL_REF (the release the installer's
+files come from), SETUP_* (answers for the wizard; with SETUP_DOMAIN the
+installation is unattended).
 EOF
 }
 
 # ── The installer: an HTTPS API and its page ──────────────────────────────────
 WEB_STATE=/var/lib/hermes-box-installer
 WEB_UNIT=hermes-box-installer
+# What the installer's files have to be: they run as root, so files that
+# differ from the ones this script was released with are refused.
+# installer-sums: begin (written by installer/sums.sh)
+WEB_SUMS="
+964996025218a2f52a4322176a446aacc243b8b47a1689e43122de004ebc266b  server.py
+3c15191d53d21ed95b98a74578f3883da02b5758b61f002d6527c35cb5579ebe  steps.sh
+be83c4877c2d8a42b40a28c402d7ef648dfd6cb9fb198854b07353762fc9e297  index.html
+"
+# installer-sums: end
 
 # This server's address on the way out; empty without the ip tool or a route.
 server_ip() {
@@ -194,15 +210,47 @@ install_packages() {  # <package>...
   fi
 }
 
-# The installer's own files: from GitHub, or from a directory (a git checkout).
+# The release the installer's files are taken from: the one named, else the
+# one the image names (ghcr.io/...:1.4.0 is the tag v1.4.0), else master.
+web_ref() {  # <image>
+  local version="${1##*:}"
+  if [ -n "${INSTALL_REF:-}" ]; then
+    printf '%s' "$INSTALL_REF"
+  elif printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+    printf 'v%s' "$version"
+  else
+    printf 'master'
+  fi
+}
+
+# The installer's own files: from GitHub, or from a directory (a git
+# checkout). Each has to have the checksum this script carries.
 web_files() {  # <source>
-  local file
+  local file want have
   for file in server.py steps.sh index.html; do
+    rm -f "$WEB_STATE/$file"
     case "$1" in
-      /*) cp "$1/$file" "$WEB_STATE/$file" ;;
-      *) fetch "$1/$file" "$WEB_STATE/$file" ;;
-    esac
+      /*) cp "$1/$file" "$WEB_STATE/$file.new" ;;
+      *) fetch "$1/$file" "$WEB_STATE/$file.new" ;;
+    esac || { echo "could not get $file from $1"; web_mismatch; return 1; }
+    want="$(printf '%s\n' "$WEB_SUMS" | sed -n "s/^\([0-9a-f]\{64\}\)  $file\$/\1/p")"
+    have="$(sha256sum "$WEB_STATE/$file.new" | cut -d' ' -f1)"
+    if [ -z "$want" ] || [ "$want" != "$have" ]; then
+      rm -f "$WEB_STATE/$file.new"
+      echo "$file from $1 is not the file this script was released with"
+      echo "  expected sha256 ${want:-(none)}"
+      echo "  got             $have"
+      web_mismatch
+      return 1
+    fi
+    mv "$WEB_STATE/$file.new" "$WEB_STATE/$file"
   done
+}
+web_mismatch() {
+  echo "This script and the installer's files have to come from the same release."
+  echo "Take get.sh from that release as well, for example:"
+  echo "  curl -fsSL https://raw.githubusercontent.com/devrelcz/hermes-box/v<version>/get.sh | sudo INSTALL_IMAGE=ghcr.io/devrelcz/hermes-box:<version> bash"
+  echo "A release older than the installer has none: add --terminal."
 }
 
 # A certificate for this run only: nobody can sign one for a bare address, so
@@ -232,14 +280,18 @@ web_address() {  # <address> <port> <bind>
   note "The browser warns about the certificate: it was made on this server a"
   note "moment ago. Continue when its SHA-256 fingerprint is:"
   note "  $fingerprint"
-  hint "The address is the key to the installer. It stops by itself when the installation is done."
-  hint "The API alone: curl -k -H 'Authorization: Bearer <token>' https://<address>:$2/api/state"
+  hint "The address is the key to the installer. It is good for two hours and"
+  hint "stops by itself when the installation is done."
+  hint "The API alone, with the certificate copied over SSH so that curl can check it:"
+  hint "  scp root@${host:-<this server>}:$WEB_STATE/tls.crt hermes-box.crt"
+  hint "  curl --cacert hermes-box.crt -H 'Authorization: Bearer <token>' https://${host:-localhost}:$2/api/state"
   hint "Watch: journalctl -fu $WEB_UNIT    Stop: systemctl stop $WEB_UNIT"
 }
 
 web_installer() {  # <image> <installation directory>
   local port="${INSTALL_PORT:-8443}" bind="${INSTALL_BIND:-0.0.0.0}"
-  local source="${INSTALL_SOURCE:-https://raw.githubusercontent.com/devrelcz/hermes-box/master/installer}"
+  local source
+  source="${INSTALL_SOURCE:-https://raw.githubusercontent.com/devrelcz/hermes-box/$(web_ref "$1")/installer}"
   local address tool missing="" up=0
   local -a pass=()
   address="$(server_ip || true)"
@@ -258,6 +310,7 @@ web_installer() {  # <image> <installation directory>
   for tool in python3 openssl; do
     command -v "$tool" >/dev/null || missing="$missing $tool"
   done
+  command -v sha256sum >/dev/null || missing="$missing coreutils"
   if [ -n "$missing" ]; then
     # shellcheck disable=SC2086  # a list of package names
     step "Installing$missing" install_packages $missing

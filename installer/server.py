@@ -23,6 +23,12 @@ Every /api/ call except /api/health needs the token get.sh printed:
 Phases: idle (nothing changed yet), running, waiting (an answer is missing,
 see "missing" in the state), failed (see "error"; retry), done.
 
+The installer does not stay around. The token is good for --lifetime seconds
+from the start, whatever the phase (a step that is running is allowed to
+end first); after the installation it stops after --linger seconds; and the
+password, which the QR code needs, is forgotten --pair-window seconds after
+the installation. "expires_at" and "pair_until" in the state say when.
+
 Only the Python standard library is used: this runs before anything else is
 on the server.
 """
@@ -55,6 +61,11 @@ EVENT = "@@step "
 LOG_KEEP = 5000
 LOG_PAGE = 500
 MAX_BODY = 64 * 1024
+# Connections are counted before one gets a thread: without a token nothing
+# can be asked, but a thread and a descriptor per open connection could
+# still be used up.
+MAX_CONNECTIONS = 48
+MAX_PER_ADDRESS = 8
 
 
 class BadRequest(Exception):
@@ -73,8 +84,11 @@ def server_address():
 
 
 class Installer:
-    def __init__(self, steps_script):
+    def __init__(self, steps_script, lifetime=7200, pair_window=600):
         self.steps_script = steps_script
+        self.started_at = time.time()
+        self.lifetime = lifetime
+        self.pair_window = pair_window
         self.cond = threading.Condition()
         self.phase = "idle"
         self.error = None
@@ -281,7 +295,9 @@ class Installer:
                 },
                 "install": self.info,
                 "summary": self.summary,
-                "can_pair": self.phase == "done" and bool(self.answers["user"] and self.answers["password"]),
+                "can_pair": self._can_pair(),
+                "pair_until": self.finished + self.pair_window if self._can_pair() else None,
+                "expires_at": self.started_at + self.lifetime,
                 "now": time.time(),
                 "log": {"from": start, "next": start + len(lines), "lines": lines},
             }
@@ -302,10 +318,20 @@ class Installer:
             "matches": (self.ip in found) if self.public else None,
         }
 
-    def pair(self):
+    def _can_pair(self):
+        return self.phase == "done" and bool(self.answers["user"] and self.answers["password"])
+
+    def forget_password(self):
+        """Once the installation is done the password is kept only for the QR code, and not for long."""
         with self.cond:
-            if self.phase != "done" or not (self.answers["user"] and self.answers["password"]):
-                raise BadRequest("the code can be shown only for a password set in this run; later, ./pair.sh")
+            if self.finished and time.time() > self.finished + self.pair_window:
+                self.answers["password"] = ""
+
+    def pair(self):
+        self.forget_password()
+        with self.cond:
+            if not self._can_pair():
+                raise BadRequest("the code can be shown only for a short while after the installation; later, ./pair.sh")
             payload = json.dumps(
                 {"v": 1, "url": self.summary["url"], "user": self.answers["user"], "password": self.answers["password"]},
                 separators=(",", ":"),
@@ -316,12 +342,60 @@ class Installer:
         return {"rows": rows}
 
 
+class BoundedServer(ThreadingHTTPServer):
+    """A threading server that refuses a connection over the limit before giving it a thread."""
+
+    daemon_threads = True
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.open_lock = threading.Lock()
+        self.open_by_address = {}
+
+    def process_request(self, request, client_address):
+        address = client_address[0]
+        with self.open_lock:
+            mine = self.open_by_address.get(address, 0)
+            if mine >= MAX_PER_ADDRESS or sum(self.open_by_address.values()) >= MAX_CONNECTIONS:
+                refused = True
+            else:
+                refused = False
+                self.open_by_address[address] = mine + 1
+        if refused:
+            self.shutdown_request(request)
+            return
+        try:
+            super().process_request(request, client_address)
+        except Exception:  # no thread could be started
+            self._closed(address)
+            self.shutdown_request(request)
+
+    def process_request_thread(self, request, client_address):
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self._closed(client_address[0])
+
+    def _closed(self, address):
+        with self.open_lock:
+            left = self.open_by_address.get(address, 1) - 1
+            if left > 0:
+                self.open_by_address[address] = left
+            else:
+                self.open_by_address.pop(address, None)
+
+    # Port scanners break connections off all the time; that is not worth a traceback.
+    def handle_error(self, request, client_address):
+        pass
+
+
 def make_handler(installer, token, page, cleanup):
     class Handler(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
         server_version = "hermes-box-installer"
         sys_version = ""
-        timeout = 30
+        # Also the time a client has for the TLS handshake and between requests.
+        timeout = 15
 
         def log_message(self, *args):
             pass
@@ -443,6 +517,10 @@ def main():
     parser.add_argument("--page", default=os.path.join(here, "index.html"))
     parser.add_argument("--linger", type=int, default=3600,
                         help="seconds the installer stays up after the installation is done")
+    parser.add_argument("--lifetime", type=int, default=7200,
+                        help="seconds the token is good for from the start, whatever the phase")
+    parser.add_argument("--pair-window", type=int, default=600,
+                        help="seconds after the installation in which the mobile app's code can be shown")
     args = parser.parse_args()
 
     with open(args.token_file, encoding="ascii") as file:
@@ -450,7 +528,7 @@ def main():
     if len(token) < 32:
         sys.exit("installer: the token is too short")
 
-    installer = Installer(args.steps)
+    installer = Installer(args.steps, lifetime=args.lifetime, pair_window=args.pair_window)
 
     def cleanup():
         # The certificate and the token were for this run only.
@@ -461,23 +539,25 @@ def main():
                 pass
         os._exit(0)
 
-    def linger():
+    def watch():
         while True:
-            time.sleep(30)
-            if installer.finished and time.time() - installer.finished > args.linger:
+            time.sleep(5)
+            now = time.time()
+            installer.forget_password()
+            if installer.finished and now - installer.finished > args.linger:
+                cleanup()
+            # A step that is running is allowed to end; nothing new is accepted for long after.
+            if now - installer.started_at > args.lifetime and installer.phase != "running":
                 cleanup()
 
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     context.minimum_version = ssl.TLSVersion.TLSv1_2
     context.load_cert_chain(args.cert, args.key)
-    server = ThreadingHTTPServer((args.bind, args.port), make_handler(installer, token, args.page, cleanup))
-    server.daemon_threads = True
-    # Port scanners break connections off all the time; that is not worth a traceback.
-    server.handle_error = lambda request, client_address: None
+    server = BoundedServer((args.bind, args.port), make_handler(installer, token, args.page, cleanup))
     # The handshake happens in the connection's own thread, on its first read:
     # a client that stalls it then holds up nobody else.
     server.socket = context.wrap_socket(server.socket, server_side=True, do_handshake_on_connect=False)
-    threading.Thread(target=linger, daemon=True).start()
+    threading.Thread(target=watch, daemon=True).start()
     print(f"installer: listening on {args.bind}:{args.port}", flush=True)
     try:
         server.serve_forever()

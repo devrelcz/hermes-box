@@ -84,7 +84,7 @@ Three things that are not obvious at first sight:
 | File | Purpose |
 | --- | --- |
 | `get.sh` | one-command installation: starts the installer; with `--terminal` does the steps itself |
-| `installer/` | the installer: an HTTPS API (`server.py`), its page (`index.html`) and the steps it runs (`steps.sh`) |
+| `installer/` | the installer: an HTTPS API (`server.py`), its page (`index.html`), the steps it runs (`steps.sh`); `sums.sh` writes their checksums into `get.sh` |
 | `setup.sh` | first-installation wizard |
 | `lib/ui.sh` | what the wizard shows: progress lines, menus (used by `setup.sh` and `pair.sh`) |
 | `pair.sh` | QR code that signs the mobile app in; sets a new Webapp password |

@@ -230,6 +230,7 @@
     <section class="panel quiet view" id="phone" hidden>
       <h3 data-t="phone.title"></h3>
       <p class="soft small" data-t="phone.text"></p>
+      <p class="hint" id="phone-left"></p>
       <canvas class="qr" id="qr" hidden></canvas>
       <p class="note bad" id="phone-error" hidden></p>
       <div class="actions"><button class="plain" id="phone-toggle"></button></div>
@@ -303,6 +304,7 @@ const WORDS = {
     "phone.title": "Connect your phone",
     "phone.text": "Scan the code in the Hermes Hobs app and you are signed in. The code contains your password, so do not take a screenshot of it.",
     "phone.show": "Show the code", "phone.hide": "Hide the code",
+    "phone.left": "The code can be shown for {n} more min. Later, whoever looks after the server can make a new one.",
     "done.model": "After you sign in, choose the AI model in the assistant's settings. It starts answering once that is done.",
     "admin.title": "For whoever looks after the server",
     "admin.text": "Keep a copy of these two things outside the server. Without the first one the backups cannot be read; the second one holds this installation's settings.",
@@ -310,7 +312,7 @@ const WORDS = {
     "bad.link.title": "This link is not complete",
     "bad.link.text": "Open the whole address shown on the server, including the part after the # sign.",
     "bad.gone.title": "We lost the connection to the installer",
-    "bad.gone.text": "This page keeps trying. If the installation was already done, the installer has switched itself off and you can close the page.",
+    "bad.gone.text": "This page keeps trying. If the installation was already done, the installer has switched itself off and you can close the page. If it had not started yet, the link has expired: run the installation command on the server again.",
   },
   cs: {
     "head.start": "Váš vlastní AI asistent, hotový za pár minut.",
@@ -359,6 +361,7 @@ const WORDS = {
     "phone.title": "Připojte telefon",
     "phone.text": "Naskenujte kód v aplikaci Hermes Hobs a jste přihlášeni. Kód obsahuje vaše heslo, proto si ho nefoťte.",
     "phone.show": "Zobrazit kód", "phone.hide": "Skrýt kód",
+    "phone.left": "Kód jde zobrazit ještě {n} min. Později vám nový vytvoří ten, kdo se stará o server.",
     "done.model": "Po přihlášení si v nastavení asistenta vyberte AI model. Jakmile to uděláte, začne odpovídat.",
     "admin.title": "Pro toho, kdo se stará o server",
     "admin.text": "Tyhle dvě věci si uložte i mimo server. Bez první se nedají přečíst zálohy, ve druhé je nastavení téhle instalace.",
@@ -366,7 +369,7 @@ const WORDS = {
     "bad.link.title": "Odkaz není úplný",
     "bad.link.text": "Otevřete celou adresu, kterou vypsal server, včetně části za znakem #.",
     "bad.gone.title": "Ztratili jsme spojení s instalátorem",
-    "bad.gone.text": "Stránka to zkouší dál. Pokud už byla instalace hotová, instalátor se sám vypnul a stránku můžete zavřít.",
+    "bad.gone.text": "Stránka to zkouší dál. Pokud už byla instalace hotová, instalátor se sám vypnul a stránku můžete zavřít. Pokud ještě nezačala, odkaz přestal platit: spusťte na serveru instalační příkaz znovu.",
   },
 };
 function browserLang() {
@@ -563,7 +566,15 @@ function renderQuestion() {
 function renderDone() {
   head("done");
   show("rail", false);
-  if (!screen("done", ["done", "after", ...(state.can_pair ? ["phone"] : [])])) return;
+  // The code for the phone can be shown only for a while after the installation.
+  const fresh = screen("done", ["done", "after"]);
+  show("phone", state.can_pair);
+  if (state.can_pair) {
+    $("phone-left").textContent = t("phone.left", { n: Math.max(1, Math.ceil((state.pair_until - state.now) / 60)) });
+  } else if (!$("qr").hidden) {
+    hideCode();
+  }
+  if (!fresh) return;
   const summary = state.summary;
   $("open").href = summary.url;
   $("done-address").textContent = summary.url;

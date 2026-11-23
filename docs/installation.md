@@ -102,18 +102,32 @@ API; the page is one client of it. It exists only for the installation:
 
 - **Certificate.** `get.sh` makes one for this run and prints its SHA-256
   fingerprint. Nobody signs a certificate for a bare address, so a browser
-  warns once and `curl` needs `-k` (or `--cacert` with a copy of
-  `/var/lib/hermes-box-installer/tls.crt`).
+  warns once; continue only when the fingerprint it shows is the printed
+  one. A program should check the certificate too: copy it over SSH, which
+  already knows the server, and give it to `curl` with `--cacert` (below).
+  Do not switch the check off with `-k`: the token and the new password
+  would go to whoever sits in between.
 - **Token.** Every call except `/api/health` needs
   `Authorization: Bearer <token>`. The token is the part of the printed
-  address after `#`; a browser never sends that part to the server.
+  address after `#`; a browser never sends that part to the server. It is
+  good for two hours from the start, whatever the installation is doing (a
+  step that is running is allowed to end); then the installer stops.
 - **Lifetime.** It stops on `POST /api/finish`, or by itself an hour after
   the installation is done, and deletes the certificate and the token.
   `systemctl stop hermes-box-installer` stops it at any time; running
   `get.sh` again starts a new one, or prints the address of a running one.
+- **Password.** It is kept in memory for `setup.sh` and for the mobile app's
+  code, and forgotten ten minutes after the installation; `GET /api/pair`
+  works only until then.
 - **Where it listens.** On every address, port 8443. `INSTALL_PORT` changes
   the port; `INSTALL_BIND=127.0.0.1` makes it reachable through an SSH tunnel
-  only (`ssh -L 8443:127.0.0.1:8443 root@<server>`).
+  only (`ssh -L 8443:127.0.0.1:8443 root@<server>`). It serves at most 48
+  connections at a time and 8 from one address; more are refused before
+  they cost anything.
+- **Its files.** `get.sh` downloads them from the same release as the image
+  (`INSTALL_IMAGE=...:1.4.0` is the tag `v1.4.0`; `INSTALL_REF` names another)
+  and runs them only when their SHA-256 is the one it carries. Take `get.sh`
+  from the same release: `.../hermes-box/v1.4.0/get.sh`.
 
 | Call | What it does |
 |---|---|
@@ -134,14 +148,18 @@ has the Webapp's address). The steps are `docker`, `download`, `extract` and
 can be sent at any time before `setup` starts; without them the installation
 runs up to there and waits.
 
-A whole installation with `curl`:
+A whole installation with `curl`. First the certificate, over SSH:
 
 ```bash
-curl -k -H "Authorization: Bearer $TOKEN" -X POST https://203.0.113.7:8443/api/start -d '{"domain": "agent.example.com", "user": "admin", "password": "at least 12 characters"}'
+scp root@203.0.113.7:/var/lib/hermes-box-installer/tls.crt hermes-box.crt
 ```
 
 ```bash
-curl -k -H "Authorization: Bearer $TOKEN" https://203.0.113.7:8443/api/state
+curl --cacert hermes-box.crt -H "Authorization: Bearer $TOKEN" -X POST https://203.0.113.7:8443/api/start -d '{"domain": "agent.example.com", "user": "admin", "password": "at least 12 characters"}'
+```
+
+```bash
+curl --cacert hermes-box.crt -H "Authorization: Bearer $TOKEN" https://203.0.113.7:8443/api/state
 ```
 
 The model is not part of the installation: it is chosen afterwards, in the
