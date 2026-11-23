@@ -259,18 +259,20 @@ if [ -f "$DATA_DIR/.hermes/config.yaml" ]; then
       fi
     fi
   done
-  # The Firecrawl in compose.yaml both searches and reads pages. Hermes chooses a
+  # The image's own web backend (plugins/hermes_box) searches through the
+  # SearXNG in compose.yaml and reads pages on this server. Hermes chooses a
   # backend from the keys it finds only until one is written to config.yaml,
-  # so an earlier choice (often a search-only one) would keep web_extract
-  # failing. web.search_backend and web.extract_backend take precedence over
-  # web.backend and are left alone: that is where to choose something else.
-  if [ "$(hermes_config get web.backend | tail -n1)" != "firecrawl" ]; then
-    hermes_config set web.backend firecrawl >/dev/null
-    note "set web.backend = firecrawl"; config_changed=1
+  # so an earlier choice (a search-only one, or firecrawl from an older
+  # hermes-box) would stay. web.search_backend and web.extract_backend take
+  # precedence over web.backend and are left alone: that is where to choose
+  # something else.
+  if [ "$(hermes_config get web.backend | tail -n1)" != "hermes-box" ]; then
+    hermes_config set web.backend hermes-box >/dev/null
+    note "set web.backend = hermes-box"; config_changed=1
   fi
   for key in web.search_backend web.extract_backend; do
     other="$(hermes_config get "$key" | tail -n1 | grep -x '[a-z0-9_-]\{1,\}' || true)"
-    [ -z "$other" ] || [ "$other" = firecrawl ] || note "$key = $other overrides Firecrawl for that half"
+    [ -z "$other" ] || [ "$other" = hermes-box ] || note "$key = $other overrides hermes-box for that half"
   done
   [ "$config_changed" -eq 1 ] || note "already set"
   # The Hermes image leaves pnpm to be installed into the data directory
@@ -344,6 +346,30 @@ else
 fi
 
 # ── 7. Start ─────────────────────────────────────────────────────────────────
+# Firecrawl, which hermes-box ran for web search and page reading before
+# SearXNG and plugins/hermes_box, is not in compose.yaml any more, and the
+# agent no longer uses it once its new image runs. Its containers, volumes,
+# network and images go here (about 6 GB), whether or not the stack restarts:
+# a deployment restarts it right after this script. Only these names, nothing
+# an installation added in instance/compose.yaml; an image in use stays.
+remove_firecrawl() {
+  local names volumes images
+  names="$(docker ps -a --format '{{.Names}}' | grep -x 'hermes-firecrawl\(-[a-z]*\)\{0,1\}' || true)"
+  volumes="$(docker volume ls -q | grep -x 'hermes_firecrawl-\(postgres\|rabbitmq\)' || true)"
+  images="$(docker image ls --format '{{.Repository}}:{{.Tag}}' \
+    | grep -E '^(ghcr\.io/firecrawl/.*|rabbitmq:3\.13-management-alpine|redis:8-alpine)$' || true)"
+  [ -n "$names$volumes$images" ] || return 0
+  note "removing Firecrawl, which this version no longer runs"
+  # shellcheck disable=SC2086  # one name per word
+  [ -z "$names" ] || docker rm -f $names >/dev/null
+  # shellcheck disable=SC2086
+  [ -z "$volumes" ] || docker volume rm $volumes >/dev/null 2>&1 || true
+  docker network rm hermes_firecrawl >/dev/null 2>&1 || true
+  # shellcheck disable=SC2086
+  [ -z "$images" ] || docker image rm $images >/dev/null 2>&1 || true
+}
+if [ -f "$DATA_DIR/.hermes/config.yaml" ]; then remove_firecrawl; fi
+
 if [ ! -f "$DATA_DIR/.hermes/config.yaml" ]; then
   say "Not starting: the data directory is empty"
 elif [ "$restart" -eq 1 ]; then

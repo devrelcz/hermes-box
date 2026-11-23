@@ -43,6 +43,20 @@ RUN set -e; for tool in uv uvx; do \
       ln -s "$bin" "/usr/local/bin/$tool"; \
     done; uv --version
 
+# The agent's web backend (plugins/hermes_box): web_search through the SearXNG
+# in compose.yaml, web_extract reading pages on this server, so no outside
+# service sees what the agent looks up or reads. It goes where Hermes keeps its
+# own web backends and loads like one of them; install.sh selects it
+# (web.backend: hermes-box). trafilatura and markdownify turn pages into
+# markdown; pypdf, for PDFs, is in the image already. The build fails if the
+# plugin no longer loads in a newer Hermes; adapt it then.
+RUN uv pip install --quiet --python /opt/hermes/.venv/bin/python \
+      trafilatura==2.3.1 markdownify==1.2.3 beautifulsoup4==4.15.0
+COPY plugins/hermes_box /opt/hermes/plugins/web/hermes_box
+RUN cd /opt/hermes && home="$(mktemp -d)" \
+ && HERMES_HOME="$home" HOME="$home" .venv/bin/python -W ignore -c 'from hermes_cli.plugins import discover_plugins; discover_plugins(force=True); from agent.web_search_registry import get_provider; p = get_provider("hermes-box"); assert p is not None and p.supports_extract(), p; import trafilatura, markdownify, pypdf' \
+ && rm -rf "$home"
+
 # Mail CLI used by cron jobs. The checksum is the one GitHub publishes for the
 # release asset; the build fails if the download differs.
 ARG HIMALAYA_VERSION=1.2.0
@@ -66,8 +80,8 @@ RUN set -e; f=/opt/hermes/agent/codex_headers.py; \
     cd /opt/hermes && .venv/bin/python -c 'from agent.codex_headers import codex_request_compression_hooks as hooks; assert hooks("https://chatgpt.com/backend-api/codex") is None and hooks("https://chatgpt.com/backend-api/codex", async_mode=True) is None'
 
 # A bot's screen (Bot Desktop) is refused while less memory is free than
-# bot_desktop.min_free_memory_mb, and Hermes' default of 1536 never passes on
-# a 4 GB server that also runs Firecrawl. Every bot has a config.yaml of its
+# bot_desktop.min_free_memory_mb, and Hermes' default of 1536 rarely passes on
+# a 4 GB server. Every bot has a config.yaml of its
 # own and a bot can be created at any time, so the limit cannot be written to
 # the configs once: the default itself is lowered here, in both places Hermes
 # keeps it. A value in a bot's config.yaml still takes precedence. The build
