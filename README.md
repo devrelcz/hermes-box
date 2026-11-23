@@ -24,6 +24,17 @@ like any other name.
 curl -fsSL https://raw.githubusercontent.com/devrelcz/hermes-box/master/get.sh | sudo bash
 ```
 
+<p>
+  <img src="docs/images/installer-1-sign-in.png" width="100%"
+       alt="The installer's first screen: a name and a password to choose, and the Install button">
+</p>
+<p>
+  <img src="docs/images/installer-2-installing.png" width="49%"
+       alt="The installation in progress: one bar and one line saying what is going on">
+  <img src="docs/images/installer-3-ready.png" width="49%"
+       alt="The installation is done: a button that opens the assistant and a QR code for the phone">
+</p>
+
 The script starts a temporary installer on the server and prints its
 address, `https://<server>:8443/#<token>`. Open it in a browser. Nothing
 changes on the server before you press Install there. The page, in English
