@@ -187,7 +187,7 @@ WEB_UNIT=hermes-box-installer
 WEB_SUMS="
 e9f5f59d7515f189e3d5c31b9bf91f7c98664235f28059364331acd1f29edd74  server.py
 3c15191d53d21ed95b98a74578f3883da02b5758b61f002d6527c35cb5579ebe  steps.sh
-9fb21edc5c30fe7699967e4ee83929988ce02fc2cd9ccafcd7dff70143df0375  index.html
+7901e94c11b9ae526ffc03b0301a1dbf7ba429b331e4e661fb188b637b73f211  index.html
 "
 # installer-sums: end
 
