@@ -180,5 +180,10 @@ or a whole server is described in [Backup and restore](docs/backup.md).
 
 ## Licence
 
-[MIT](LICENSE). Hermes Agent itself, Caddy and the other tools used have their
-own licences.
+[Functional Source License 1.1, Apache 2.0 future licence](LICENSE.md)
+(FSL-1.1-ALv2). You may use, change and run HobCrew Box for anything except
+offering it, or a service built on it, as a commercial product that competes
+with HobCrew. Each version becomes Apache 2.0 two years after its release.
+Versions released before this change stay under the MIT licence they came with.
+
+Hermes Agent itself, Caddy and the other tools used have their own licences.
