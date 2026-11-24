@@ -62,6 +62,11 @@ if [ -d .git ]; then
   command -v git >/dev/null || die "git is not installed (used by the automatic deployment)"
 fi
 docker compose version >/dev/null 2>&1 || die "the Docker compose plugin is missing"
+# Files compose.yaml mounts one by one. Docker would make a missing one an
+# empty directory, and the container would not start.
+for file in caddy/Caddyfile searxng/settings.yml; do
+  [ -f "$file" ] || die "$file is missing or not a file; get the files again (get.sh --update, or docker/extract.sh)"
+done
 
 # instance/ holds what belongs to this installation only. It is not part of
 # this repository; keep it as a private git repository of its own.

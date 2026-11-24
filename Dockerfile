@@ -112,6 +112,12 @@ COPY installer /opt/hermes-box/installer
 COPY instance.example /opt/hermes-box/instance.example
 COPY lib /opt/hermes-box/lib
 COPY monitor /opt/hermes-box/monitor
+# A local build on the host (no HERMES_BOX_IMAGE) needs the plugin, too.
+COPY plugins /opt/hermes-box/plugins
+# compose.yaml mounts searxng/settings.yml into the SearXNG container. A path
+# missing on the host would become an empty directory there, and SearXNG
+# would refuse to start.
+COPY searxng /opt/hermes-box/searxng
 COPY server /opt/hermes-box/server
 COPY skin /opt/hermes-box/skin
 # A published image knows its own name: release.env tells the scripts on the
