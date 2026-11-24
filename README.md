@@ -77,7 +77,7 @@ installation without piping a script into a shell, or one from git, see
 
 ## Mobile app
 
-[Hermes Hobs](https://github.com/devrelcz/hermes-hobs) signs in with the same
+The [HobCrew app](https://github.com/hobcrew-com/hobcrew-app) signs in with the same
 user name and password as the browser. Instead of typing them on a phone,
 scan a QR code. The installer offers the code at the end of the installation.
 Later:
