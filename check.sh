@@ -22,7 +22,15 @@ warn() { [ "$quiet" -eq 1 ] || printf 'warn  %s\n' "$1"; }
 # check <name> <command...>: passes when the command succeeds
 check() { local name="$1"; shift; if "$@" >/dev/null 2>&1; then ok "$name"; else fail "$name"; fi; }
 
-http_code() { curl -s -o /dev/null --max-time 15 -w '%{http_code}' "$1" 2>/dev/null; }
+# With a certificate of your own (instance/tls/ca.pem, its authority) the
+# Webapp is reached through a proxy of yours, and its name need not resolve
+# anywhere: it is checked on this server, against that authority.
+CA_FILE="$REPO_DIR/instance/tls/ca.pem"
+curl_tls=(); tls_target="$DOMAIN:443"
+if [ -f "$CA_FILE" ] && [ -n "$DOMAIN" ]; then
+  curl_tls=(--cacert "$CA_FILE" --resolve "$DOMAIN:443:127.0.0.1"); tls_target="127.0.0.1:443"
+fi
+http_code() { curl -s -o /dev/null --max-time 15 -w '%{http_code}' "${curl_tls[@]}" "$1" 2>/dev/null; }
 is_up()     { case "$(http_code "$1")" in 200|301|302) return 0 ;; *) return 1 ;; esac; }
 
 # ── Data ─────────────────────────────────────────────────────────────────────
@@ -76,7 +84,7 @@ else fail "listening on a public address: $exposed"; fi
 if [ -n "$DOMAIN" ]; then
   check "https://$DOMAIN answers" is_up "https://$DOMAIN/"
   cert_ok() {
-    echo | openssl s_client -connect "$DOMAIN:443" -servername "$DOMAIN" 2>/dev/null |
+    echo | openssl s_client -connect "$tls_target" -servername "$DOMAIN" 2>/dev/null |
       openssl x509 -noout -checkend $((14 * 86400))
   }
   check "certificate is valid for at least 14 more days" cert_ok

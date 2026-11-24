@@ -1,4 +1,6 @@
-# Public entry point of the server. TLS certificates are issued automatically.
+# Public entry point of the server. TLS certificates are issued automatically,
+# unless instance/tls/ has a *.caddy file that says otherwise (docs/installation.md,
+# "A certificate of your own").
 
 # X-Forwarded-* headers are taken over only from these addresses
 # (HERMES_TRUSTED_PROXIES in instance/.env); from anyone else Caddy sets its own.
@@ -11,5 +13,6 @@
 # Hermes Webapp (Desktop workspace in a browser, incl. Bots), behind Hermes' own sign-in.
 # The dashboard (127.0.0.1:9119) is not published; reach it over an SSH tunnel.
 {$HERMES_DOMAIN} {
+	import /etc/caddy/tls/*.caddy
 	reverse_proxy 127.0.0.1:9120
 }
