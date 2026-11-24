@@ -10,7 +10,7 @@
 #                           anything is checked or started (used by setup.sh)
 #
 # The image is pulled when a published one is named (release.env, or
-# HERMES_BOX_IMAGE in instance/.env) and built from the Dockerfile otherwise.
+# HOBCREW_BOX_IMAGE in instance/.env) and built from the Dockerfile otherwise.
 #
 # Needs: Docker with the compose plugin and the installation's own settings in
 # instance/ (see instance.example/); a first run creates that directory and
@@ -44,8 +44,8 @@ env_get() { sed -n "s/^$1=//p" instance/.env 2>/dev/null | tail -n1; }
 # (written by docker/extract.sh), else the one built here from the Dockerfile.
 image_ref() {
   local ref
-  ref="$(env_get HERMES_BOX_IMAGE)"
-  [ -n "$ref" ] || ref="$(sed -n 's/^HERMES_BOX_IMAGE=//p' "$REPO_DIR/release.env" 2>/dev/null | tail -n1)"
+  ref="$(env_get HOBCREW_BOX_IMAGE)"
+  [ -n "$ref" ] || ref="$(sed -n 's/^HOBCREW_BOX_IMAGE=//p' "$REPO_DIR/release.env" 2>/dev/null | tail -n1)"
   printf '%s' "${ref:-hermes-agent-local}"
 }
 
@@ -105,7 +105,7 @@ KEY_FILE="${KEY_FILE:-/etc/hermes/credentials/age.key}"
 DOMAIN="$(env_get HERMES_DOMAIN)"
 IMAGE="$(image_ref)"
 # compose.yaml reads the image name from the environment.
-export HERMES_BOX_IMAGE="$IMAGE"
+export HOBCREW_BOX_IMAGE="$IMAGE"
 
 docker compose config -q || die "compose.yaml or instance/.env is invalid"
 
@@ -258,25 +258,25 @@ if [ -f "$DATA_DIR/.hermes/config.yaml" ]; then
   for toolset in browser terminal; do
     printf '%s\n' "$cron_tools" | grep -qx "$toolset" || enables+=("tools enable $toolset --platform cron")
   done
-  # The image's own web backend (plugins/hermes_box) searches through the
+  # The image's own web backend (plugins/hobcrew_box) searches through the
   # SearXNG in compose.yaml and reads pages on this server. Hermes chooses a
   # backend from the keys it finds only until one is written to config.yaml,
   # so an earlier choice (a search-only one, or firecrawl from an older
-  # hermes-box) would stay. web.search_backend and web.extract_backend take
+  # hobcrew-box) would stay. web.search_backend and web.extract_backend take
   # precedence over web.backend and are left alone: that is where to choose
   # something else.
-  # An image published before this backend (HERMES_BOX_IMAGE can lag behind
+  # An image published before this backend (HOBCREW_BOX_IMAGE can lag behind
   # this checkout) does not have it; the backend stays as it is then, and with
   # no Firecrawl on this server any more Hermes reaches the web through the
   # free tiers of public services until the image is updated.
-  if ! docker run --rm --entrypoint test "$IMAGE" -d /opt/hermes/plugins/web/hermes_box; then
-    note "$IMAGE has no hermes-box web backend; update HERMES_BOX_IMAGE (docs/server.md, Web and browser)"
-  elif [ "$(get web.backend)" != hermes-box ]; then
-    set_value web.backend hermes-box
+  if ! docker run --rm --entrypoint test "$IMAGE" -d /opt/hermes/plugins/web/hobcrew_box; then
+    note "$IMAGE has no hobcrew-box web backend; update HOBCREW_BOX_IMAGE (docs/server.md, Web and browser)"
+  elif [ "$(get web.backend)" != hobcrew-box ]; then
+    set_value web.backend hobcrew-box
   fi
   for key in web.search_backend web.extract_backend; do
     other="$(get "$key" | grep -x '[a-z0-9_-]\{1,\}' || true)"
-    [ -z "$other" ] || [ "$other" = hermes-box ] || note "$key = $other overrides hermes-box for that half"
+    [ -z "$other" ] || [ "$other" = hobcrew-box ] || note "$key = $other overrides hobcrew-box for that half"
   done
   if [ "${#writes[@]}" -gt 0 ] || [ "${#enables[@]}" -gt 0 ]; then
     hermes_batch ${writes[@]+"${writes[@]}"} ${enables[@]+"${enables[@]}"} ||
@@ -298,12 +298,12 @@ if [ -f "$DATA_DIR/.hermes/config.yaml" ]; then
   # (<data>/.hermes/tools) and complains on every start until it is there:
   # "install out of sync (pnpm: not installed or outdated)". The image has the
   # pnpm its Hermes wants, with the facts.json that records it, in
-  # /opt/hermes-box-tools (Dockerfile). A data directory without a facts.json
+  # /opt/hobcrew-box-tools (Dockerfile). A data directory without a facts.json
   # gets those copied, which takes a second; one with tools of its own, or an
   # image from before, downloads pnpm when it is missing (needs the network).
   # facts.json goes last: a copy cut short leaves no record of a half pnpm.
   pnpm_seed="$(docker run --rm --network none -u "$RUN_UID:$RUN_GID" -v "$DATA_DIR/.hermes:/opt/data" \
-    --entrypoint sh "$IMAGE" -c 'seed=/opt/hermes-box-tools to=/opt/data/tools
+    --entrypoint sh "$IMAGE" -c 'seed=/opt/hobcrew-box-tools to=/opt/data/tools
       [ -f "$seed/facts.json" ] || { echo none; exit 0; }
       [ ! -e "$to/facts.json" ] || { echo own; exit 0; }
       mkdir -p "$to" || exit 1
@@ -340,7 +340,7 @@ fi
 # change up on the next page load. A default.yaml without the marker in its
 # first line is somebody's own and is left alone.
 skin="$DATA_DIR/.hermes/skins/default.yaml"
-if [ ! -e "$skin" ] || head -n1 "$skin" | grep -q '^# hermes-box: managed'; then
+if [ ! -e "$skin" ] || head -n1 "$skin" | grep -q '^# hobcrew-box: managed'; then
   if ! cmp -s skin/default.yaml "$skin"; then
     as_owner mkdir -p "$DATA_DIR/.hermes/skins"
     install -m 644 -o "$RUN_UID" -g "$RUN_GID" skin/default.yaml "$skin"
@@ -386,8 +386,8 @@ else
 fi
 
 # ── 7. Start ─────────────────────────────────────────────────────────────────
-# Firecrawl, which hermes-box ran for web search and page reading before
-# SearXNG and plugins/hermes_box, is not in compose.yaml any more, and the
+# Firecrawl, which hobcrew-box ran for web search and page reading before
+# SearXNG and plugins/hobcrew_box, is not in compose.yaml any more, and the
 # agent no longer uses it once its new image runs. Its containers, volumes,
 # network and images go here (about 6 GB), whether or not the stack restarts:
 # a deployment restarts it right after this script. Only these names, nothing

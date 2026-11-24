@@ -47,8 +47,8 @@ env_get() { sed -n "s/^$1=//p" instance/.env 2>/dev/null | tail -n1; }
 # (written by docker/extract.sh), else the one built here from the Dockerfile.
 image_ref() {
   local ref
-  ref="$(env_get HERMES_BOX_IMAGE)"
-  [ -n "$ref" ] || ref="$(sed -n 's/^HERMES_BOX_IMAGE=//p' "$REPO_DIR/release.env" 2>/dev/null | tail -n1)"
+  ref="$(env_get HOBCREW_BOX_IMAGE)"
+  [ -n "$ref" ] || ref="$(sed -n 's/^HOBCREW_BOX_IMAGE=//p' "$REPO_DIR/release.env" 2>/dev/null | tail -n1)"
   printf '%s' "${ref:-hermes-agent-local}"
 }
 

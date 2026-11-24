@@ -19,7 +19,7 @@
 #   ./setup.sh --no-start  everything except step 6
 #   ./setup.sh --verbose   show every command's output instead of a progress line
 #
-# The output of the long steps goes to /var/log/hermes-box-setup.log.
+# The output of the long steps goes to /var/log/hobcrew-box-setup.log.
 #
 # Every question can be answered in advance through the environment, which
 # also allows an unattended setup (step 4 needs a terminal and is skipped
@@ -45,7 +45,7 @@ start=1
 for arg in "$@"; do
   case "$arg" in
     --no-start) start=0 ;;
-    -v|--verbose) export HERMES_BOX_VERBOSE=1 ;;
+    -v|--verbose) export HOBCREW_BOX_VERBOSE=1 ;;
     -h|--help) sed -n '2,37p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "unknown option: $arg" >&2; exit 2 ;;
   esac
@@ -64,8 +64,8 @@ env_get() { [ ! -f instance/.env ] || sed -n "s/^$1=//p" instance/.env | tail -n
 # (written by docker/extract.sh), else the one built here from the Dockerfile.
 image_ref() {
   local ref
-  ref="$(env_get HERMES_BOX_IMAGE)"
-  [ -n "$ref" ] || ref="$(sed -n 's/^HERMES_BOX_IMAGE=//p' "$REPO_DIR/release.env" 2>/dev/null | tail -n1)"
+  ref="$(env_get HOBCREW_BOX_IMAGE)"
+  [ -n "$ref" ] || ref="$(sed -n 's/^HOBCREW_BOX_IMAGE=//p' "$REPO_DIR/release.env" 2>/dev/null | tail -n1)"
   printf '%s' "${ref:-hermes-agent-local}"
 }
 # Set KEY=value in instance/.env: replace the line (also a commented-out one) or append.
@@ -100,14 +100,14 @@ model_set() { grep -Eqs '^model:' "$DATA_DIR/.hermes/config.yaml"; }
 
 # ── What is about to happen ──────────────────────────────────────────────────
 if [ "$existing" -eq 1 ]; then
-  printf '\n  %sHermes Box%s %s· already set up: https://%s%s\n' "$UI_B" "$UI_N" "$UI_D" "$(env_get HERMES_DOMAIN)" "$UI_N"
+  printf '\n  %sHobCrew Box%s %s· already set up: https://%s%s\n' "$UI_B" "$UI_N" "$UI_D" "$(env_get HERMES_DOMAIN)" "$UI_N"
   note "This run offers only the steps skipped so far. Everything else about"
   note "the installation is updated with ./install.sh."
-elif [ "${HERMES_BOX_INTRO_SHOWN:-0}" != 1 ]; then
+elif [ "${HOBCREW_BOX_INTRO_SHOWN:-0}" != 1 ]; then
   # get.sh has shown this already and asked.
   ui_intro "$REPO_DIR" "$DATA_DIR" "$KEY_FILE"
   if [ "$interactive" -eq 1 ]; then
-    choose SETUP_CONFIRM "Set up Hermes Box on this server?" yes yes "Set it up" no "Cancel"
+    choose SETUP_CONFIRM "Set up HobCrew Box on this server?" yes yes "Set it up" no "Cancel"
     [ "$CHOICE" = yes ] || die "nothing was changed"
   fi
 fi
@@ -451,7 +451,7 @@ rm -f "$health"
 # ── Done ─────────────────────────────────────────────────────────────────────
 # Shown again after the QR code: pair.sh wipes the screen, scrollback included.
 summary() {
-  say "Hermes Box is running"
+  say "HobCrew Box is running"
   note "Webapp     https://$DOMAIN"
   if [ -n "$login_user" ]; then
     note "Sign in    as '$login_user' with the password you chose"

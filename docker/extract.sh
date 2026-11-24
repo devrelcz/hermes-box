@@ -3,17 +3,17 @@
 # compose.yaml, the scripts and the systemd unit templates. Used to install
 # from a published image and to update such an installation:
 #
-#   docker run --rm -v /opt/hermes-box:/out --entrypoint hermes-box-extract IMAGE
+#   docker run --rm -v /opt/hobcrew-box:/out --entrypoint hobcrew-box-extract IMAGE
 #
 # Files of the same name are replaced. instance/ (settings and encrypted
 # secrets) and the data directory are not part of the image and are left alone.
 set -eu
 
-SRC=/opt/hermes-box
+SRC=/opt/hobcrew-box
 OUT="${1:-/out}"
 
 grep -q " $OUT " /proc/mounts ||
-  { echo "extract: mount the installation directory at $OUT: -v /opt/hermes-box:$OUT" >&2; exit 2; }
+  { echo "extract: mount the installation directory at $OUT: -v /opt/hobcrew-box:$OUT" >&2; exit 2; }
 
 # Docker turns a missing bind-mount source into an empty directory. Images up
 # to 1.6.0 lacked searxng/settings.yml, so their installations have such a
@@ -29,7 +29,7 @@ done
 cp -R "$SRC/." "$OUT/"
 
 if [ -f "$SRC/release.env" ]; then
-  echo "extract: $(sed -n 's/^HERMES_BOX_IMAGE=//p' "$SRC/release.env")"
+  echo "extract: $(sed -n 's/^HOBCREW_BOX_IMAGE=//p' "$SRC/release.env")"
 else
   # A locally built image: there is nothing to pull, the host builds it.
   rm -f "$OUT/release.env"

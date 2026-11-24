@@ -24,17 +24,17 @@ gets a certificate like any other name.
 One command, on a server with nothing installed:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/hobcrew-com/hermes-box/master/get.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/hobcrew-com/hobcrew-box/master/get.sh | sudo bash
 ```
 
 [`get.sh`](../get.sh) installs `python3` and `openssl` when they are missing,
 starts the [installer](#the-installers-api) as the systemd unit
-`hermes-box-installer` and prints its address. The installer does the rest,
+`hobcrew-box-installer` and prints its address. The installer does the rest,
 started and watched from its page: it installs Docker when it is missing
 (with Docker's own script, <https://get.docker.com>, which covers Debian,
 Ubuntu, Fedora, CentOS and RHEL), pulls the published image, extracts
 `compose.yaml`, the scripts and the systemd units from it into
-`/opt/hermes-box` and runs `setup.sh` with the answers given on the page.
+`/opt/hobcrew-box` and runs `setup.sh` with the answers given on the page.
 Nothing is built or cloned. Run again on a server that is already installed,
 the installer offers only what was skipped so far.
 
@@ -46,18 +46,18 @@ answers can be given the same way, which makes the installation unattended
 (it then runs in the terminal, without the installer):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/hobcrew-com/hermes-box/master/get.sh | sudo INSTALL_IMAGE=ghcr.io/hobcrew-com/hermes-box:1.0.0 SETUP_DOMAIN=agent.example.com bash
+curl -fsSL https://raw.githubusercontent.com/hobcrew-com/hobcrew-box/master/get.sh | sudo INSTALL_IMAGE=ghcr.io/hobcrew-com/hobcrew-box:1.0.0 SETUP_DOMAIN=agent.example.com bash
 ```
 
 The same by hand, when Docker is already there and you would rather not pipe
 a script into a shell:
 
 ```bash
-docker run --rm -v /opt/hermes-box:/out --entrypoint hermes-box-extract ghcr.io/hobcrew-com/hermes-box:1
+docker run --rm -v /opt/hobcrew-box:/out --entrypoint hobcrew-box-extract ghcr.io/hobcrew-com/hobcrew-box:1
 ```
 
 ```bash
-cd /opt/hermes-box && ./setup.sh
+cd /opt/hobcrew-box && ./setup.sh
 ```
 
 The `:1` tag is the latest release of the 1 series. The installation remembers
@@ -88,7 +88,7 @@ answered in advance with the `SETUP_*` variables (see the header of
 and is skipped without one.
 
 Each long step shows one progress line. What the commands print goes to
-`/var/log/hermes-box-setup.log`; when a step fails, its last lines are shown.
+`/var/log/hobcrew-box-setup.log`; when a step fails, its last lines are shown.
 `--verbose` (for `get.sh` and `setup.sh`) shows everything as it runs, and
 `--yes` (`get.sh`) skips the question before the installation starts.
 
@@ -116,7 +116,7 @@ API; the page is one client of it. It exists only for the installation:
 - **Lifetime.** It stops on `POST /api/finish`, or by itself 15 minutes
   after the installation is done, and deletes the certificate and the token;
   nothing listens on its port afterwards.
-  `systemctl stop hermes-box-installer` stops it at any time; running
+  `systemctl stop hobcrew-box-installer` stops it at any time; running
   `get.sh` again starts a new one, or prints the address of a running one.
 - **Password.** It is kept in memory for `setup.sh` and for the mobile app's
   code, and forgotten 15 minutes after the installation; `GET /api/pair`
@@ -129,7 +129,7 @@ API; the page is one client of it. It exists only for the installation:
 - **Its files.** `get.sh` downloads them from the same release as the image
   (`INSTALL_IMAGE=...:1.4.0` is the tag `v1.4.0`; `INSTALL_REF` names another)
   and runs them only when their SHA-256 is the one it carries. Take `get.sh`
-  from the same release: `.../hermes-box/v1.4.0/get.sh`.
+  from the same release: `.../hobcrew-box/v1.4.0/get.sh`.
 
 | Call | What it does |
 |---|---|
@@ -153,15 +153,15 @@ runs up to there and waits.
 A whole installation with `curl`. First the certificate, over SSH:
 
 ```bash
-scp root@203.0.113.7:/var/lib/hermes-box-installer/tls.crt hermes-box.crt
+scp root@203.0.113.7:/var/lib/hobcrew-box-installer/tls.crt hobcrew-box.crt
 ```
 
 ```bash
-curl --cacert hermes-box.crt -H "Authorization: Bearer $TOKEN" -X POST https://203.0.113.7:8443/api/start -d '{"domain": "agent.example.com", "user": "admin", "password": "at least 12 characters"}'
+curl --cacert hobcrew-box.crt -H "Authorization: Bearer $TOKEN" -X POST https://203.0.113.7:8443/api/start -d '{"domain": "agent.example.com", "user": "admin", "password": "at least 12 characters"}'
 ```
 
 ```bash
-curl --cacert hermes-box.crt -H "Authorization: Bearer $TOKEN" https://203.0.113.7:8443/api/state
+curl --cacert hobcrew-box.crt -H "Authorization: Bearer $TOKEN" https://203.0.113.7:8443/api/state
 ```
 
 The model is not part of the installation: it is chosen afterwards, in the
@@ -183,7 +183,7 @@ The installer's page shows the code at the end of a first installation, for
 the password chosen there (`setup.sh` in the terminal offers it too). Later:
 
 ```bash
-cd /opt/hermes-box && ./pair.sh
+cd /opt/hobcrew-box && ./pair.sh
 ```
 
 Only a hash of the password is stored, so the current one cannot be shown
@@ -203,7 +203,7 @@ terminal once you confirm the scan. Do not screenshot it. What it holds:
 ## Existing installation, restore, another server
 
 Extract the files from the image as for a new installation, clone your
-instance repository into `/opt/hermes-box/instance/` and run:
+instance repository into `/opt/hobcrew-box/instance/` and run:
 
 ```bash
 ./install.sh
@@ -228,7 +228,7 @@ public part; that has to be added to the recipients of the secrets (see
 | `AUTO_DEPLOY` | off | `true`: the server deploys new commits by itself |
 | `HERMES_DATA_DIR` | `/home/hermes` | where all state lives |
 | `HERMES_UID`, `HERMES_GID` | `1000` | owner of the data |
-| `HERMES_BOX_IMAGE` | from `release.env` | an image other than the one the installation came with |
+| `HOBCREW_BOX_IMAGE` | from `release.env` | an image other than the one the installation came with |
 | `HERMES_IMAGE_TAG` | the version in the `Dockerfile` | only when building yourself: another Hermes version, e.g. `v0.23.3` for an image without Bot Desktop |
 
 The `.env` file in the root is only a link to `instance/.env`, created by
@@ -267,18 +267,18 @@ one-command update. By hand: extract the files from the new image over the
 existing ones and deploy:
 
 ```bash
-docker run --rm -v /opt/hermes-box:/out --entrypoint hermes-box-extract ghcr.io/hobcrew-com/hermes-box:1
+docker run --rm -v /opt/hobcrew-box:/out --entrypoint hobcrew-box-extract ghcr.io/hobcrew-com/hobcrew-box:1
 ```
 
 ```bash
-cd /opt/hermes-box && ./install.sh --restart
+cd /opt/hobcrew-box && ./install.sh --restart
 ```
 
 Neither `instance/` nor the data changes. It is a good idea to run a backup
 before updating (`systemctl start hermes-backup`).
 
 Going back to a previous version is the same with its exact tag, e.g. `:1.0.0`.
-Which version is running: `cat /opt/hermes-box/release.env`.
+Which version is running: `cat /opt/hobcrew-box/release.env`.
 
 ## Installing from git
 
@@ -288,11 +288,11 @@ repository instead of extracting it from the image. Without `release.env`,
 `hermes-agent-local`) and `AUTO_DEPLOY` can be enabled.
 
 ```bash
-git clone https://github.com/hobcrew-com/hermes-box.git /opt/hermes-box
+git clone https://github.com/hobcrew-com/hobcrew-box.git /opt/hobcrew-box
 ```
 
 ```bash
-cd /opt/hermes-box && ./setup.sh
+cd /opt/hobcrew-box && ./setup.sh
 ```
 
 ## Deploying a change
@@ -360,5 +360,5 @@ A release is a tag of the form `v1.2.3`:
 git tag v1.2.3 && git push origin v1.2.3
 ```
 
-CI publishes `ghcr.io/hobcrew-com/hermes-box:1.2.3` and moves `:1.2` and `:1`.
+CI publishes `ghcr.io/hobcrew-com/hobcrew-box:1.2.3` and moves `:1.2` and `:1`.
 A tag with a suffix (`v1.2.3-rc.1`) publishes only itself.

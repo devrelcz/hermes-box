@@ -1,4 +1,4 @@
-"""hermes-box web backend: search through the SearXNG on this server, read pages on this server.
+"""hobcrew-box web backend: search through the SearXNG on this server, read pages on this server.
 
 web_search goes to SearXNG (``SEARXNG_URL``), the same call as Hermes' own ``searxng``
 backend. web_extract fetches each page itself and turns it into markdown: HTML with
@@ -118,7 +118,7 @@ def _pdf_to_text(body: bytes) -> tuple[str, str]:
     pages = []
     for number, page in enumerate(reader.pages):
         if number >= MAX_PDF_PAGES:
-            pages.append(f"[hermes-box: the PDF has more than {MAX_PDF_PAGES} pages; the rest was not read]")
+            pages.append(f"[hobcrew-box: the PDF has more than {MAX_PDF_PAGES} pages; the rest was not read]")
             break
         pages.append(page.extract_text() or "")
     title = ""
@@ -169,11 +169,11 @@ def _read(client: httpx.Client, url: str, format: Optional[str]) -> dict[str, An
             return with_origin_status(page_error(url, f"cannot read content of type {kind}"),
                                       response.status_code, _reason(response))
     except Exception as exc:
-        logger.warning("hermes-box: reading %s failed: %s", final_url, exc)
+        logger.warning("hobcrew-box: reading %s failed: %s", final_url, exc)
         return page_error(url, f"could not read the {kind} content: {exc}")
 
     if cut and content:
-        content += f"\n\n[hermes-box: the response is larger than {MAX_BYTES // 2**20} MB; only its beginning was read]"
+        content += f"\n\n[hobcrew-box: the response is larger than {MAX_BYTES // 2**20} MB; only its beginning was read]"
     if final_url != url:  # the redirect target, with the requested URL as source, like Keenable
         entry = document(final_url, title, content, source_url=url)
     else:
@@ -190,11 +190,11 @@ def _reason(response: httpx.Response) -> str:
     return reason
 
 
-class HermesBoxWebProvider(BaseWebSearchProvider):
+class HobCrewBoxWebProvider(BaseWebSearchProvider):
     """Search with SearXNG on this server, read pages on this server."""
 
-    NAME = "hermes-box"
-    DISPLAY_NAME = "hermes-box (on this server)"
+    NAME = "hobcrew-box"
+    DISPLAY_NAME = "HobCrew Box (on this server)"
     KEY_ENV = "SEARXNG_URL"
     EXTRACT = True
 
@@ -204,7 +204,7 @@ class HermesBoxWebProvider(BaseWebSearchProvider):
     def search(self, query: str, limit: int = 5) -> dict[str, Any]:
         from plugins.web.searxng.provider import SearXNGWebSearchProvider
 
-        return run_search("hermes-box", logger, lambda: SearXNGWebSearchProvider().search(query, limit))
+        return run_search("hobcrew-box", logger, lambda: SearXNGWebSearchProvider().search(query, limit))
 
     def extract(self, urls: list[str], **kwargs: Any) -> list[dict[str, Any]]:
         format = kwargs.get("format")
@@ -212,17 +212,17 @@ class HermesBoxWebProvider(BaseWebSearchProvider):
         def _body() -> list[dict[str, Any]]:
             from tools.url_safety import create_ssrf_safe_client
 
-            logger.info("hermes-box extract: %d URL(s)", len(urls))
+            logger.info("hobcrew-box extract: %d URL(s)", len(urls))
             with create_ssrf_safe_client(follow_redirects=True, max_redirects=10, timeout=TIMEOUT,
                                          headers=HEADERS) as client:
                 with ThreadPoolExecutor(max_workers=max(1, min(WORKERS, len(urls)))) as pool:
                     return list(pool.map(lambda u: _read(client, u, format), urls))
 
-        return run_extract("hermes-box", logger, urls, _body)
+        return run_extract("hobcrew-box", logger, urls, _body)
 
     def get_setup_schema(self) -> dict[str, Any]:
         return setup_schema(
-            "hermes-box (on this server)", "free · on this server",
+            "HobCrew Box (on this server)", "free · on this server",
             "Searches through the SearXNG on this server and reads pages here; no outside service.",
-            "SEARXNG_URL", "SearXNG instance URL (set by hermes-box)", "",
+            "SEARXNG_URL", "SearXNG instance URL (set by hobcrew-box)", "",
         )

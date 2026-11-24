@@ -2,7 +2,7 @@
 # One-command installation on an empty server. Nothing has to be on the
 # server beforehand except curl:
 #
-#   curl -fsSL https://raw.githubusercontent.com/hobcrew-com/hermes-box/master/get.sh | sudo bash
+#   curl -fsSL https://raw.githubusercontent.com/hobcrew-com/hobcrew-box/master/get.sh | sudo bash
 #
 # It installs what the installer itself needs (python3, openssl), starts the
 # installer on this server and prints its address. The installer is an HTTPS
@@ -16,7 +16,7 @@
 # browser warns about it once; the fingerprint is printed here to compare),
 # its address carries a one-time token that is good for two hours, and it
 # stops when the installation is finished. It runs as the systemd unit
-# hermes-box-installer, so it survives a lost SSH connection.
+# hobcrew-box-installer, so it survives a lost SSH connection.
 #
 # The installer's files are downloaded from the same release as this script
 # and checked against the SHA-256 written below (installer/sums.sh); files
@@ -35,12 +35,12 @@
 # installer offers only what was skipped so far; the files change only with
 # --update.
 #
-# The output of the long steps goes to /var/log/hermes-box-setup.log.
+# The output of the long steps goes to /var/log/hobcrew-box-setup.log.
 #
 # Settings, through the environment (`sudo VAR=value bash`):
 #
-#   INSTALL_IMAGE=ghcr.io/hobcrew-com/hermes-box:1   which release, e.g. :1.0.0
-#   INSTALL_DIR=/opt/hermes-box                      where the files go
+#   INSTALL_IMAGE=ghcr.io/hobcrew-com/hobcrew-box:1   which release, e.g. :1.0.0
+#   INSTALL_DIR=/opt/hobcrew-box                      where the files go
 #   INSTALL_PORT=8443                                the installer's port
 #   INSTALL_BIND=0.0.0.0                             127.0.0.1: reachable through an SSH tunnel only
 #   INSTALL_REF=v1.4.0                               the release the installer's files come from;
@@ -56,8 +56,8 @@ set -euo pipefail
 # Everything is in a function that is called on the last line: a download cut
 # off halfway then runs nothing instead of half of the script.
 main() {
-  local image="${INSTALL_IMAGE:-ghcr.io/hobcrew-com/hermes-box:1}"
-  local dir="${INSTALL_DIR:-/opt/hermes-box}"
+  local image="${INSTALL_IMAGE:-ghcr.io/hobcrew-com/hobcrew-box:1}"
+  local dir="${INSTALL_DIR:-/opt/hobcrew-box}"
   local update=0 confirmed=0 terminal=0 arg
   local -a setup_args=()
 
@@ -92,21 +92,21 @@ main() {
 
   # ── What is about to happen ───────────────────────────────────────────────
   if [ "$existing" -eq 1 ] && [ "$update" -eq 1 ]; then
-    printf '\n  %sHermes Box%s %s· update%s\n\n' "$UI_B" "$UI_N" "$UI_D" "$UI_N"
+    printf '\n  %sHobCrew Box%s %s· update%s\n\n' "$UI_B" "$UI_N" "$UI_D" "$UI_N"
     note "The installation in $dir gets the files of $image"
     note "and restarts: about a minute without the agent. Settings and data stay."
     hint "A backup first is a good idea: systemctl start hermes-backup"
     confirm "Update now?" "Update" || die "nothing was changed"
   elif [ "$existing" -eq 1 ]; then
-    printf '\n  %sHermes Box%s %s· already installed in %s%s\n' "$UI_B" "$UI_N" "$UI_D" "$dir" "$UI_N"
+    printf '\n  %sHobCrew Box%s %s· already installed in %s%s\n' "$UI_B" "$UI_N" "$UI_D" "$dir" "$UI_N"
     note "The wizard starts again and offers only what was skipped so far."
     note "To update to a newer release, run this with --update."
   else
     intro "$dir" "${SETUP_DATA_DIR:-/home/hermes}"
-    confirm "Install Hermes Box on this server?" "Install" || die "nothing was changed"
+    confirm "Install HobCrew Box on this server?" "Install" || die "nothing was changed"
   fi
   log_start
-  export HERMES_BOX_LOG="$UI_LOG" HERMES_BOX_VERBOSE="$UI_VERBOSE" HERMES_BOX_INTRO_SHOWN=1
+  export HOBCREW_BOX_LOG="$UI_LOG" HOBCREW_BOX_VERBOSE="$UI_VERBOSE" HOBCREW_BOX_INTRO_SHOWN=1
 
   # ── Docker ────────────────────────────────────────────────────────────────
   say "Docker"
@@ -126,12 +126,12 @@ main() {
 
   # ── Files from the image ──────────────────────────────────────────────────
   if [ "$existing" -eq 0 ] || [ "$update" -eq 1 ]; then
-    say "Hermes Box"
+    say "HobCrew Box"
     mkdir -p "$dir"
     step "Downloading $image (about 5 GB)" docker pull --quiet "$image"
     step "Unpacking the files into $dir" \
-      docker run --rm --network none -v "$dir:/out" --entrypoint hermes-box-extract "$image"
-    hint "release $(sed -n 's/^HERMES_BOX_IMAGE=//p' "$dir/release.env" 2>/dev/null | tail -n1)"
+      docker run --rm --network none -v "$dir:/out" --entrypoint hobcrew-box-extract "$image"
+    hint "release $(sed -n 's/^HOBCREW_BOX_IMAGE=//p' "$dir/release.env" 2>/dev/null | tail -n1)"
   fi
 
   cd "$dir"
@@ -159,7 +159,7 @@ usage() {
   cat <<'EOF'
 Installs Hermes Agent in Docker on this server.
 
-  curl -fsSL https://raw.githubusercontent.com/hobcrew-com/hermes-box/master/get.sh | sudo bash
+  curl -fsSL https://raw.githubusercontent.com/hobcrew-com/hobcrew-box/master/get.sh | sudo bash
 
 It starts a temporary installer on this server (an HTTPS API and a page)
 and prints its address; the installation is started and watched there.
@@ -170,8 +170,8 @@ and prints its address; the installation is started and watched there.
   --verbose    show every command's output, not a progress line
   --yes        terminal only: do not ask before starting
 
-Environment: INSTALL_IMAGE (default ghcr.io/hobcrew-com/hermes-box:1),
-INSTALL_DIR (default /opt/hermes-box), INSTALL_PORT (default 8443),
+Environment: INSTALL_IMAGE (default ghcr.io/hobcrew-com/hobcrew-box:1),
+INSTALL_DIR (default /opt/hobcrew-box), INSTALL_PORT (default 8443),
 INSTALL_BIND (default 0.0.0.0), INSTALL_REF (the release the installer's
 files come from), SETUP_* (answers for the wizard; with SETUP_DOMAIN the
 installation is unattended).
@@ -179,15 +179,15 @@ EOF
 }
 
 # ── The installer: an HTTPS API and its page ──────────────────────────────────
-WEB_STATE=/var/lib/hermes-box-installer
-WEB_UNIT=hermes-box-installer
+WEB_STATE=/var/lib/hobcrew-box-installer
+WEB_UNIT=hobcrew-box-installer
 # What the installer's files have to be: they run as root, so files that
 # differ from the ones this script was released with are refused.
 # installer-sums: begin (written by installer/sums.sh)
 WEB_SUMS="
-e9f5f59d7515f189e3d5c31b9bf91f7c98664235f28059364331acd1f29edd74  server.py
-223caa5369e6e2d046615ff81cda5aea8487f4ddd37b10df02b4a5006150f7b3  steps.sh
-7901e94c11b9ae526ffc03b0301a1dbf7ba429b331e4e661fb188b637b73f211  index.html
+b16966a40dfbe5eecb023706fef390b7ee85869f666f825072527dc30aad9296  server.py
+6e856dc1fc9dd5221f52732c849f60f85680b83e3b7a3e3ffb77555ff25845f3  steps.sh
+1e3ccf95bdeb2e37c70ce4306404c1a8de1c0bb77b833c3f3cbdf8a96ff27b26  index.html
 "
 # installer-sums: end
 
@@ -249,7 +249,7 @@ web_files() {  # <source>
 web_mismatch() {
   echo "This script and the installer's files have to come from the same release."
   echo "Take get.sh from that release as well, for example:"
-  echo "  curl -fsSL https://raw.githubusercontent.com/hobcrew-com/hermes-box/v<version>/get.sh | sudo INSTALL_IMAGE=ghcr.io/hobcrew-com/hermes-box:<version> bash"
+  echo "  curl -fsSL https://raw.githubusercontent.com/hobcrew-com/hobcrew-box/v<version>/get.sh | sudo INSTALL_IMAGE=ghcr.io/hobcrew-com/hobcrew-box:<version> bash"
   echo "A release older than the installer has none: add --terminal."
 }
 
@@ -259,7 +259,7 @@ web_certificate() {  # <address>
   local names="IP:127.0.0.1,DNS:localhost"
   [ -z "$1" ] || names="IP:$1,$names"
   (umask 077; openssl req -x509 -newkey rsa:2048 -nodes -days 30 \
-    -subj "/CN=Hermes Box installer" -addext "subjectAltName=$names" \
+    -subj "/CN=HobCrew Box installer" -addext "subjectAltName=$names" \
     -keyout "$WEB_STATE/tls.key" -out "$WEB_STATE/tls.crt")
 }
 
@@ -283,20 +283,20 @@ web_address() {  # <address> <port> <bind>
   hint "The address is the key to the installer. It is good for two hours and"
   hint "stops by itself when the installation is done."
   hint "The API alone, with the certificate copied over SSH so that curl can check it:"
-  hint "  scp root@${host:-<this server>}:$WEB_STATE/tls.crt hermes-box.crt"
-  hint "  curl --cacert hermes-box.crt -H 'Authorization: Bearer <token>' https://${host:-localhost}:$2/api/state"
+  hint "  scp root@${host:-<this server>}:$WEB_STATE/tls.crt hobcrew-box.crt"
+  hint "  curl --cacert hobcrew-box.crt -H 'Authorization: Bearer <token>' https://${host:-localhost}:$2/api/state"
   hint "Watch: journalctl -fu $WEB_UNIT    Stop: systemctl stop $WEB_UNIT"
 }
 
 web_installer() {  # <image> <installation directory>
   local port="${INSTALL_PORT:-8443}" bind="${INSTALL_BIND:-0.0.0.0}"
   local source
-  source="${INSTALL_SOURCE:-https://raw.githubusercontent.com/hobcrew-com/hermes-box/$(web_ref "$1")/installer}"
+  source="${INSTALL_SOURCE:-https://raw.githubusercontent.com/hobcrew-com/hobcrew-box/$(web_ref "$1")/installer}"
   local address tool missing="" up=0
   local -a pass=()
   address="$(server_ip || true)"
 
-  printf '\n  %sHermes Box%s %s· Hermes Agent on your own server%s\n' "$UI_B" "$UI_N" "$UI_D" "$UI_N"
+  printf '\n  %sHobCrew Box%s %s· Hermes Agent on your own server%s\n' "$UI_B" "$UI_N" "$UI_D" "$UI_N"
   if systemctl is-active --quiet "$WEB_UNIT" 2>/dev/null && [ -s "$WEB_STATE/token" ]; then
     note "The installer is already running."
     web_address "$address" "$(cat "$WEB_STATE/port" 2>/dev/null || echo "$port")" "$(cat "$WEB_STATE/bind" 2>/dev/null || echo "$bind")"
@@ -326,7 +326,7 @@ web_installer() {  # <image> <installation directory>
   # A unit of its own: the installation goes on when this SSH session ends.
   [ -z "${SETUP_DATA_DIR:-}" ] || pass+=("--setenv=SETUP_DATA_DIR=$SETUP_DATA_DIR")
   systemctl reset-failed "$WEB_UNIT" 2>/dev/null || true
-  systemd-run --quiet --unit="$WEB_UNIT" --collect --description="Hermes Box installer" \
+  systemd-run --quiet --unit="$WEB_UNIT" --collect --description="HobCrew Box installer" \
     --setenv=INSTALL_IMAGE="$1" --setenv=INSTALL_DIR="$2" ${pass[@]+"${pass[@]}"} \
     python3 "$WEB_STATE/server.py" --bind "$bind" --port "$port" \
     --cert "$WEB_STATE/tls.crt" --key "$WEB_STATE/tls.key" --token-file "$WEB_STATE/token" ||
@@ -345,8 +345,8 @@ web_installer() {  # <image> <installation directory>
 # ── Terminal output ───────────────────────────────────────────────────────────
 # A copy of the pieces of lib/ui.sh this script needs before the files are on
 # the server (see there); keep the two alike.
-UI_LOG="${HERMES_BOX_LOG:-/var/log/hermes-box-setup.log}"
-UI_VERBOSE="${HERMES_BOX_VERBOSE:-0}"
+UI_LOG="${HOBCREW_BOX_LOG:-/var/log/hobcrew-box-setup.log}"
+UI_VERBOSE="${HOBCREW_BOX_VERBOSE:-0}"
 UI_PID=""
 UI_TTY=0
 if [ -t 1 ] && (: </dev/tty) 2>/dev/null; then UI_TTY=1; fi
@@ -474,12 +474,12 @@ confirm() {
   [ "$sel" -eq 0 ]
 }
 
-# What Hermes Box is and what is about to happen. setup.sh shows the same
+# What HobCrew Box is and what is about to happen. setup.sh shows the same
 # text (lib/ui.sh, ui_intro) when it is started on its own.
 intro() {  # <installation directory> <data directory>
   cat <<EOF
 
-  ${UI_B}Hermes Box${UI_N} ${UI_D}· Hermes Agent on your own server${UI_N}
+  ${UI_B}HobCrew Box${UI_N} ${UI_D}· Hermes Agent on your own server${UI_N}
 
   Hermes Agent (by Nous Research) is an AI assistant that works on its own:
   it keeps a memory, runs scheduled jobs, searches the web and uses a browser.
@@ -488,7 +488,7 @@ intro() {  # <installation directory> <data directory>
 
   ${UI_B}What happens now${UI_N}
     1. Docker is installed, if it is missing.
-    2. Hermes Box is downloaded: about 5 GB, the longest part.
+    2. HobCrew Box is downloaded: about 5 GB, the longest part.
     3. A few questions: the web address, a user name and password, the model.
     4. Everything is set up and started: HTTPS, a daily backup, a health check.
     It takes 10 to 20 minutes. Running it again skips the finished steps.
