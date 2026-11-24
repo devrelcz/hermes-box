@@ -174,7 +174,7 @@ the progress as one bar and keeps the log for the case that a step fails.
 
 ## Pairing the mobile app
 
-[Hermes Hobs](https://github.com/devrelcz/hermes-hobs) signs in to the Webapp
+The [HobCrew app](https://github.com/hobcrew-com/hobcrew-app) signs in to the Webapp
 with the same user name and password as the browser. Instead of typing them
 on a phone, scan a QR code: it carries the server's address, the user name and
 the password.
