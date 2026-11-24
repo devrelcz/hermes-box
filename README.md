@@ -9,6 +9,10 @@ or supported by Nous Research, the makers of Hermes Agent. The server ends up wi
 and one private key; the secrets are encrypted files, so no outside service
 holds them.
 
+Rather not run a server yourself? [HobCrew](https://hobcrew.com) sets up
+HobCrew Box for you and keeps it running: the server, the domain, updates and
+backups included.
+
 ## What you need
 
 - A Linux server (x86_64, with systemd) and root on it.
