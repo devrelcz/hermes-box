@@ -222,47 +222,41 @@ note "all files in instance/secrets/ decrypt with this server's key"
 config_changed=0
 if [ -f "$DATA_DIR/.hermes/config.yaml" ]; then
   say "Checking settings in config.yaml"
-  hermes_offline() {  # the hermes CLI against the data directory, offline
-    docker run --rm --network none --entrypoint /opt/hermes/bin/hermes \
-      -u "$RUN_UID:$RUN_GID" -e HERMES_HOME=/opt/data -e HOME=/opt/data \
-      -v "$DATA_DIR/.hermes:/opt/data" "$IMAGE" "$@" 2>/dev/null
+  # Everything is read with one batch and written with another: each hermes
+  # command started on its own takes seconds (lib/hermes.sh).
+  # shellcheck source=lib/hermes.sh
+  . "$REPO_DIR/lib/hermes.sh"
+  hermes_batch "config get webapp.enabled" "config get webapp.public_url" \
+    "config get terminal.home_mode" "config get browser.cloud_provider" \
+    "config get --json platform_toolsets.cron" "config get web.backend" \
+    "config get web.search_backend" "config get web.extract_backend" ||
+    die "could not read $DATA_DIR/.hermes/config.yaml with the hermes CLI"
+  get() { batch_out "config get $1" | tail -n1; }
+  writes=()
+  set_value() {  # <key> <value>
+    writes+=("config set $1 $(shq "$2")")
+    note "set $1 = $2"; config_changed=1
   }
-  hermes_config() { hermes_offline config "$@"; }
   want_url="https://$DOMAIN"
-  if [ "$(hermes_config get webapp.enabled | tail -n1)" != "true" ]; then
-    hermes_config set webapp.enabled true >/dev/null
-    note "set webapp.enabled = true"; config_changed=1
-  fi
-  if [ "$(hermes_config get webapp.public_url | tail -n1)" != "$want_url" ]; then
-    hermes_config set webapp.public_url "$want_url" >/dev/null
-    note "set webapp.public_url = $want_url"; config_changed=1
-  fi
+  [ "$(get webapp.enabled)" = true ] || set_value webapp.enabled true
+  [ "$(get webapp.public_url)" = "$want_url" ] || set_value webapp.public_url "$want_url"
   # Tools and cron scripts must see HOME=/opt/data, not the isolated
   # /opt/data/home: `~/.config/himalaya` and `~/.hermes/...` live there.
   # config.yaml overrides the TERMINAL_HOME_MODE environment variable, so the
   # setting has to be made here.
-  if [ "$(hermes_config get terminal.home_mode | tail -n1)" != "real" ]; then
-    hermes_config set terminal.home_mode real >/dev/null
-    note "set terminal.home_mode = real"; config_changed=1
-  fi
+  [ "$(get terminal.home_mode)" = real ] || set_value terminal.home_mode real
   # The browser: the image ships Chromium, so cron jobs can open pages that
   # web_extract cannot read. Without a provider Hermes picks one from whatever
   # keys it finds, and a cloud one would be chosen over the local Chromium;
   # a provider somebody chose on purpose is left alone.
-  if ! hermes_config get browser.cloud_provider | tail -n1 | grep -qx '[a-z0-9_-]\{1,\}'; then
-    hermes_config set browser.cloud_provider local >/dev/null
-    note "set browser.cloud_provider = local"; config_changed=1
-  fi
+  get browser.cloud_provider | grep -qx '[a-z0-9_-]\{1,\}' || set_value browser.cloud_provider local
   # browser_exec is offered only to sessions that also have the terminal.
-  cron_tools="$(hermes_offline tools list --platform cron || true)"
+  # The toolsets cron jobs get are in platform_toolsets.cron; without it
+  # Hermes' defaults apply, and enabling one writes the whole list.
+  cron_tools="$(batch_out "config get --json platform_toolsets.cron" | jq -r '.[]?' 2>/dev/null || true)"
+  enables=()
   for toolset in browser terminal; do
-    if ! printf '%s\n' "$cron_tools" | grep -q " enabled  *$toolset "; then
-      if hermes_offline tools enable "$toolset" --platform cron >/dev/null; then
-        note "enabled the $toolset toolset for cron jobs"; config_changed=1
-      else
-        note "could not enable the $toolset toolset for cron jobs"
-      fi
-    fi
+    printf '%s\n' "$cron_tools" | grep -qx "$toolset" || enables+=("tools enable $toolset --platform cron")
   done
   # The image's own web backend (plugins/hermes_box) searches through the
   # SearXNG in compose.yaml and reads pages on this server. Hermes chooses a
@@ -277,30 +271,65 @@ if [ -f "$DATA_DIR/.hermes/config.yaml" ]; then
   # free tiers of public services until the image is updated.
   if ! docker run --rm --entrypoint test "$IMAGE" -d /opt/hermes/plugins/web/hermes_box; then
     note "$IMAGE has no hermes-box web backend; update HERMES_BOX_IMAGE (docs/server.md, Web and browser)"
-  elif [ "$(hermes_config get web.backend | tail -n1)" != "hermes-box" ]; then
-    hermes_config set web.backend hermes-box >/dev/null
-    note "set web.backend = hermes-box"; config_changed=1
+  elif [ "$(get web.backend)" != hermes-box ]; then
+    set_value web.backend hermes-box
   fi
   for key in web.search_backend web.extract_backend; do
-    other="$(hermes_config get "$key" | tail -n1 | grep -x '[a-z0-9_-]\{1,\}' || true)"
+    other="$(get "$key" | grep -x '[a-z0-9_-]\{1,\}' || true)"
     [ -z "$other" ] || [ "$other" = hermes-box ] || note "$key = $other overrides hermes-box for that half"
   done
+  if [ "${#writes[@]}" -gt 0 ] || [ "${#enables[@]}" -gt 0 ]; then
+    hermes_batch ${writes[@]+"${writes[@]}"} ${enables[@]+"${enables[@]}"} ||
+      die "could not write $DATA_DIR/.hermes/config.yaml with the hermes CLI"
+    for line in ${writes[@]+"${writes[@]}"}; do
+      batch_ok "$line" || die "hermes $line failed: $(batch_err "$line" | tail -n1)"
+    done
+    for line in ${enables[@]+"${enables[@]}"}; do
+      toolset="${line#tools enable }"; toolset="${toolset%% *}"
+      if batch_ok "$line"; then
+        note "enabled the $toolset toolset for cron jobs"; config_changed=1
+      else
+        note "could not enable the $toolset toolset for cron jobs"
+      fi
+    done
+  fi
   [ "$config_changed" -eq 1 ] || note "already set"
   # The Hermes image leaves pnpm to be installed into the data directory
   # (<data>/.hermes/tools) and complains on every start until it is there:
-  # "install out of sync (pnpm: not installed or outdated)". Needs the network.
-  hermes_pm() {  # with the network and with stderr, unlike hermes_config
-    docker run --rm --init --entrypoint /opt/hermes/bin/hermes \
-      -u "$RUN_UID:$RUN_GID" -e HERMES_HOME=/opt/data -e HOME=/opt/data \
-      -v "$DATA_DIR/.hermes:/opt/data" "$IMAGE" "$@" 2>&1
-  }
-  case "$(hermes_pm config get webapp.enabled || true)" in *'out of sync (pnpm'*)
-    if hermes_pm pm install pnpm >/dev/null; then
-      note "installed pnpm into $DATA_DIR/.hermes/tools"
-    else
-      note "could not install pnpm; Hermes will keep warning that the install is out of sync"
-    fi ;;
-  esac
+  # "install out of sync (pnpm: not installed or outdated)". The image has the
+  # pnpm its Hermes wants, with the facts.json that records it, in
+  # /opt/hermes-box-tools (Dockerfile). A data directory without a facts.json
+  # gets those copied, which takes a second; one with tools of its own, or an
+  # image from before, downloads pnpm when it is missing (needs the network).
+  # facts.json goes last: a copy cut short leaves no record of a half pnpm.
+  pnpm_seed="$(docker run --rm --network none -u "$RUN_UID:$RUN_GID" -v "$DATA_DIR/.hermes:/opt/data" \
+    --entrypoint sh "$IMAGE" -c 'seed=/opt/hermes-box-tools to=/opt/data/tools
+      [ -f "$seed/facts.json" ] || { echo none; exit 0; }
+      [ ! -e "$to/facts.json" ] || { echo own; exit 0; }
+      mkdir -p "$to" || exit 1
+      for tool in "$seed"/*/; do
+        name="$(basename "$tool")"
+        rm -rf "$to/$name" "$to/.$name.new"
+        cp -R "$tool" "$to/.$name.new" && mv "$to/.$name.new" "$to/$name" || exit 1
+      done
+      cp "$seed/facts.json" "$to/.facts.json.new" && mv "$to/.facts.json.new" "$to/facts.json" && echo copied' ||
+    true)"
+  if [ "$pnpm_seed" = copied ]; then
+    note "copied pnpm from the image into $DATA_DIR/.hermes/tools"
+  else
+    hermes_pm() {  # with the network and with stderr, unlike hermes_batch
+      docker run --rm --init --entrypoint /opt/hermes/bin/hermes \
+        -u "$RUN_UID:$RUN_GID" -e HERMES_HOME=/opt/data -e HOME=/opt/data \
+        -v "$DATA_DIR/.hermes:/opt/data" "$IMAGE" "$@" 2>&1
+    }
+    case "$(hermes_pm config get webapp.enabled || true)" in *'out of sync (pnpm'*)
+      if hermes_pm pm install pnpm >/dev/null; then
+        note "installed pnpm into $DATA_DIR/.hermes/tools"
+      else
+        note "could not install pnpm; Hermes will keep warning that the install is out of sync"
+      fi ;;
+    esac
+  fi
 else
   note "no config.yaml in $DATA_DIR/.hermes yet: this is an empty data directory."
   note "Restore the data first, or run ./setup.sh for a first-time setup."

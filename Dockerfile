@@ -57,6 +57,21 @@ RUN cd /opt/hermes && home="$(mktemp -d)" \
  && HERMES_HOME="$home" HOME="$home" .venv/bin/python -W ignore -c 'from hermes_cli.plugins import discover_plugins; discover_plugins(force=True); from agent.web_search_registry import get_provider; p = get_provider("hermes-box"); assert p is not None and p.supports_extract(), p; import trafilatura, markdownify, pypdf' \
  && rm -rf "$home"
 
+# pnpm, which Hermes wants in the data directory (<data>/.hermes/tools) and
+# warns about on every start until it is there. Every new server used to
+# download it during its setup; install.sh copies this one into a new data
+# directory instead: made by the same Hermes, so the version it asks for, and
+# with the facts.json that records it (Hermes deletes tools it has no record
+# of). The build fails if Hermes stops putting them there; adapt it then.
+RUN home="$(mktemp -d)" \
+ && HERMES_HOME="$home" HOME="$home" /opt/hermes/.venv/bin/hermes pm install pnpm \
+ && grep -q '"pnpm"' "$home/tools/facts.json" \
+ && ls -d "$home"/tools/pnpm-* >/dev/null \
+ && rm -f "$home/tools/.install.lock" \
+ && mv "$home/tools" /opt/hermes-box-tools \
+ && rm -rf "$home" \
+ && chmod -R a+rX /opt/hermes-box-tools
+
 # Mail CLI used by cron jobs. The checksum is the one GitHub publishes for the
 # release asset; the build fails if the download differs.
 ARG HIMALAYA_VERSION=1.2.0
