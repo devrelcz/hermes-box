@@ -247,8 +247,10 @@ SETUP_TLS_CA="$(cat ca.pem)" ./setup.sh
 ```
 
 The certificate is for `HERMES_DOMAIN`. It lands in `instance/tls/`:
-`cert.pem`, `key.pem`, `ca.pem` (the authority; `check.sh` trusts it for its
-HTTPS checks) and `own.caddy`, which tells Caddy to serve them. The key is not
+`cert.pem`, `key.pem`, `ca.pem` (the authority) and `own.caddy`, which tells
+Caddy to serve them. With `ca.pem` there, `check.sh` asks the Webapp on this
+server (127.0.0.1) and checks it against that authority, so the name need
+not resolve anywhere; a name only your proxy knows is fine. The key is not
 encrypted, so `instance/tls/.gitignore` keeps it out of the instance
 repository; after a restore, give the certificate again. Running `setup.sh`
 with a new one replaces it and restarts Caddy. Delete `instance/tls/own.caddy`
