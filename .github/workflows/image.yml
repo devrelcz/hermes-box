@@ -31,9 +31,9 @@ jobs:
       - name: Check the scripts
         run: |
           shellcheck --severity=error \
-            get.sh install.sh setup.sh pair.sh check.sh sops.sh lib/ui.sh \
+            get.sh install.sh setup.sh pair.sh check.sh sops.sh lib/ui.sh lib/hermes.sh \
             backup/*.sh monitor/*.sh deploy/*.sh docker/*.sh installer/*.sh
-          python3 -m py_compile installer/server.py
+          python3 -m py_compile installer/server.py lib/hermes-batch.py
           installer/sums.sh --check
 
       - name: Name and version

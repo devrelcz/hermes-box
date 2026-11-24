@@ -291,7 +291,6 @@ hermes() {  # run the hermes CLI on the data directory; HERMES_TTY=1 attaches th
     -u "$RUN_UID:$RUN_GID" -e HERMES_HOME=/opt/data -e HOME=/opt/data -w /opt/hermes \
     -v "$DATA_DIR/.hermes:/opt/data" --entrypoint /opt/hermes/bin/hermes "$IMAGE" "$@"
 }
-hermes_quiet() { hermes "$@" >/dev/null 2>&1; }
 
 # The agent's secrets start with a harmless marker; add real ones later with
 # ./sops.sh secrets/hermes.enc.yaml (one NAME: value per line). The backup
@@ -326,14 +325,22 @@ if [ "$model_wizard" -eq 1 ]; then
   fi
 fi
 # Make sure the configuration file exists; install.sh fills in the rest.
-[ -f "$DATA_DIR/.hermes/config.yaml" ] || hermes_quiet config set webapp.enabled true ||
-  die "could not create $DATA_DIR/.hermes/config.yaml"
+# The hermes commands here go in two batches (lib/hermes.sh): each one
+# started on its own takes seconds.
+# shellcheck source=lib/hermes.sh
+. "$REPO_DIR/lib/hermes.sh"
+first=()
+[ -f "$DATA_DIR/.hermes/config.yaml" ] || first+=("config set webapp.enabled true")
+hermes_batch ${first[@]+"${first[@]}"} "config get dashboard.basic_auth.username" ||
+  die "could not run the hermes CLI from $IMAGE"
+[ -f "$DATA_DIR/.hermes/config.yaml" ] || die "could not create $DATA_DIR/.hermes/config.yaml"
 
 # ── 5. Sign-in for the Webapp ────────────────────────────────────────────────
 # The user name and password are the only sign-in. A server that used a Nous
 # Portal account counts as not set up, and setting the password removes that
 # sign-in: Hermes would otherwise offer both. The Nous account itself stays
-# logged in, so a model served by Nous Portal keeps working.
+# logged in, so a model served by Nous Portal keeps working. The rest of that
+# (config unset dashboard.oauth.client_id) goes with the new sign-in's batch.
 drop_nous_login() {
   local env="$DATA_DIR/.hermes/.env" tmp
   if grep -qs '^HERMES_DASHBOARD_OAUTH_CLIENT_ID=' "$env"; then
@@ -341,10 +348,9 @@ drop_nous_login() {
     grep -v '^HERMES_DASHBOARD_OAUTH_CLIENT_ID=' "$env" > "$tmp" || true
     cat "$tmp" > "$env"; rm -f "$tmp"
   fi
-  hermes_quiet config unset dashboard.oauth.client_id || true
   rm -f "$DATA_DIR/.hermes/webapp/sign-in-registration.json"
 }
-existing_user="$(hermes config get dashboard.basic_auth.username 2>/dev/null | tail -n1)" || existing_user=""
+existing_user="$(batch_out "config get dashboard.basic_auth.username" | tail -n1)"
 if [ -n "$existing_user" ]; then
   login_user=""
   pair_password=""
@@ -356,9 +362,17 @@ else
       --entrypoint /opt/hermes/.venv/bin/python "$IMAGE" -c \
       'import sys; from plugins.dashboard_auth.basic import hash_password; print(hash_password(sys.stdin.read()))' 2>/dev/null | tail -n1)"
     case "$hash" in scrypt\$*) ;; *) die "could not hash the password" ;; esac
-    hermes_quiet config set dashboard.basic_auth.username "$login_user"
-    hermes_quiet config set dashboard.basic_auth.password_hash "$hash"
-    hermes_quiet config set dashboard.basic_auth.secret "$(head -c 32 /dev/urandom | base64 | tr -d '\n')"
+    sign_in=(
+      "config set dashboard.basic_auth.username $(shq "$login_user")"
+      "config set dashboard.basic_auth.password_hash $(shq "$hash")"
+      "config set dashboard.basic_auth.secret $(shq "$(head -c 32 /dev/urandom | base64 | tr -d '\n')")"
+    )
+    hermes_batch "${sign_in[@]}" "config unset dashboard.oauth.client_id" ||
+      die "could not run the hermes CLI from $IMAGE"
+    for line in "${sign_in[@]}"; do
+      batch_ok "$line" || die "could not save the Webapp sign-in: $(batch_err "$line" | tail -n1)"
+    done
+    unset sign_in hash
     drop_nous_login
     ok "Webapp sign-in for '$login_user'"
     changed=1
