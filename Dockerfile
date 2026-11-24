@@ -117,7 +117,7 @@ COPY --chmod=0755 docker/secrets-entrypoint.sh /usr/local/bin/secrets-entrypoint
 # needs nothing but this image: docker/extract.sh copies them to the host.
 # Only what is listed here goes in; instance/ never does (see .dockerignore).
 COPY --chmod=0755 docker/extract.sh /usr/local/bin/hobcrew-box-extract
-COPY compose.yaml install.sh setup.sh pair.sh check.sh sops.sh Dockerfile README.md LICENSE /opt/hobcrew-box/
+COPY compose.yaml install.sh setup.sh pair.sh check.sh sops.sh Dockerfile README.md LICENSE.md /opt/hobcrew-box/
 COPY backup /opt/hobcrew-box/backup
 COPY caddy /opt/hobcrew-box/caddy
 COPY deploy /opt/hobcrew-box/deploy
@@ -143,6 +143,6 @@ RUN if [ -n "$HOBCREW_BOX_IMAGE" ]; then \
       printf '# Written when the image was published; read by install.sh and compose.\nHOBCREW_BOX_IMAGE=%s\n' "$HOBCREW_BOX_IMAGE" > /opt/hobcrew-box/release.env; \
     fi
 LABEL org.opencontainers.image.source="https://github.com/hobcrew-com/hobcrew-box" \
-      org.opencontainers.image.licenses="MIT"
+      org.opencontainers.image.licenses="FSL-1.1-ALv2"
 ENTRYPOINT ["/usr/local/bin/secrets-entrypoint"]
 CMD []
