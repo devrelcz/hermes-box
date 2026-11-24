@@ -21,7 +21,7 @@ like any other name.
 ## Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/devrelcz/hermes-box/master/get.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/hobcrew-com/hermes-box/master/get.sh | sudo bash
 ```
 
 <p>
@@ -151,7 +151,7 @@ docker exec -it -u 1000:1000 -e HOME=/opt/data hermes hermes --help
 ## Updating
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/devrelcz/hermes-box/master/get.sh | sudo bash -s -- --update
+curl -fsSL https://raw.githubusercontent.com/hobcrew-com/hermes-box/master/get.sh | sudo bash -s -- --update
 ```
 
 This fetches the latest release and restarts the stack. Your settings and

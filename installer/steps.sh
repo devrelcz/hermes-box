@@ -18,7 +18,7 @@
 
 set -euo pipefail
 
-IMAGE="${INSTALL_IMAGE:-ghcr.io/devrelcz/hermes-box:1}"
+IMAGE="${INSTALL_IMAGE:-ghcr.io/hobcrew-com/hermes-box:1}"
 DIR="${INSTALL_DIR:-/opt/hermes-box}"
 
 die() { printf 'installer: %s\n' "$*" >&2; exit 1; }

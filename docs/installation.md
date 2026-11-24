@@ -24,7 +24,7 @@ gets a certificate like any other name.
 One command, on a server with nothing installed:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/devrelcz/hermes-box/master/get.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/hobcrew-com/hermes-box/master/get.sh | sudo bash
 ```
 
 [`get.sh`](../get.sh) installs `python3` and `openssl` when they are missing,
@@ -46,14 +46,14 @@ answers can be given the same way, which makes the installation unattended
 (it then runs in the terminal, without the installer):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/devrelcz/hermes-box/master/get.sh | sudo INSTALL_IMAGE=ghcr.io/devrelcz/hermes-box:1.0.0 SETUP_DOMAIN=agent.example.com bash
+curl -fsSL https://raw.githubusercontent.com/hobcrew-com/hermes-box/master/get.sh | sudo INSTALL_IMAGE=ghcr.io/hobcrew-com/hermes-box:1.0.0 SETUP_DOMAIN=agent.example.com bash
 ```
 
 The same by hand, when Docker is already there and you would rather not pipe
 a script into a shell:
 
 ```bash
-docker run --rm -v /opt/hermes-box:/out --entrypoint hermes-box-extract ghcr.io/devrelcz/hermes-box:1
+docker run --rm -v /opt/hermes-box:/out --entrypoint hermes-box-extract ghcr.io/hobcrew-com/hermes-box:1
 ```
 
 ```bash
@@ -222,6 +222,7 @@ public part; that has to be added to the recipients of the secrets (see
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `HERMES_DOMAIN` | – | public address of the Webapp; DNS must point at the server |
+| `HERMES_TRUSTED_PROXIES` | – | IPs or CIDR ranges of a reverse proxy in front of the Webapp, separated by spaces; its `X-Forwarded-*` headers are passed on |
 | `SOPS_AGE_KEY_FILE` | `/etc/hermes/credentials/age.key` | the server's private key |
 | `BACKUP_EXTRA_PATHS` | empty | further paths in the data directory to back up, separated by spaces |
 | `AUTO_DEPLOY` | off | `true`: the server deploys new commits by itself |
@@ -240,7 +241,7 @@ one-command update. By hand: extract the files from the new image over the
 existing ones and deploy:
 
 ```bash
-docker run --rm -v /opt/hermes-box:/out --entrypoint hermes-box-extract ghcr.io/devrelcz/hermes-box:1
+docker run --rm -v /opt/hermes-box:/out --entrypoint hermes-box-extract ghcr.io/hobcrew-com/hermes-box:1
 ```
 
 ```bash
@@ -261,7 +262,7 @@ repository instead of extracting it from the image. Without `release.env`,
 `hermes-agent-local`) and `AUTO_DEPLOY` can be enabled.
 
 ```bash
-git clone https://github.com/devrelcz/hermes-box.git /opt/hermes-box
+git clone https://github.com/hobcrew-com/hermes-box.git /opt/hermes-box
 ```
 
 ```bash
@@ -333,5 +334,5 @@ A release is a tag of the form `v1.2.3`:
 git tag v1.2.3 && git push origin v1.2.3
 ```
 
-CI publishes `ghcr.io/devrelcz/hermes-box:1.2.3` and moves `:1.2` and `:1`.
+CI publishes `ghcr.io/hobcrew-com/hermes-box:1.2.3` and moves `:1.2` and `:1`.
 A tag with a suffix (`v1.2.3-rc.1`) publishes only itself.

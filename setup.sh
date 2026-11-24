@@ -32,6 +32,7 @@
 #   SETUP_WEBAPP_USER=admin  SETUP_WEBAPP_PASSWORD=...
 #   SETUP_PAIR=yes|no                   show the QR code for the mobile app (terminal only)
 #   SETUP_AUTO_DEPLOY=yes|no
+#   SETUP_TRUSTED_PROXIES=203.0.113.7   a proxy in front of the Webapp (HERMES_TRUSTED_PROXIES)
 
 set -euo pipefail
 
@@ -43,7 +44,7 @@ for arg in "$@"; do
   case "$arg" in
     --no-start) start=0 ;;
     -v|--verbose) export HERMES_BOX_VERBOSE=1 ;;
-    -h|--help) sed -n '2,36p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,37p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "unknown option: $arg" >&2; exit 2 ;;
   esac
 done
@@ -197,6 +198,9 @@ fi
 DOMAIN="$(env_get HERMES_DOMAIN)"
 if [ -n "${SETUP_DATA_DIR:-}" ] && [ -z "$(env_get HERMES_DATA_DIR)" ]; then
   env_set HERMES_DATA_DIR "$SETUP_DATA_DIR"
+fi
+if [ -n "${SETUP_TRUSTED_PROXIES:-}" ] && [ -z "$(env_get HERMES_TRUSTED_PROXIES)" ]; then
+  env_set HERMES_TRUSTED_PROXIES "$SETUP_TRUSTED_PROXIES"
 fi
 DATA_DIR="$(env_get HERMES_DATA_DIR)"; DATA_DIR="${DATA_DIR:-/home/hermes}"
 RUN_UID="$(env_get HERMES_UID)";       RUN_UID="${RUN_UID:-1000}"
