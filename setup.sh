@@ -33,6 +33,8 @@
 #   SETUP_PAIR=yes|no                   show the QR code for the mobile app (terminal only)
 #   SETUP_AUTO_DEPLOY=yes|no
 #   SETUP_TRUSTED_PROXIES=203.0.113.7   a proxy in front of the Webapp (HERMES_TRUSTED_PROXIES)
+#   SETUP_TLS_CERT=<PEM> SETUP_TLS_KEY=<PEM> [SETUP_TLS_CA=<PEM>]
+#                                       a certificate of your own instead of Let's Encrypt's
 
 set -euo pipefail
 
@@ -201,6 +203,35 @@ if [ -n "${SETUP_DATA_DIR:-}" ] && [ -z "$(env_get HERMES_DATA_DIR)" ]; then
 fi
 if [ -n "${SETUP_TRUSTED_PROXIES:-}" ] && [ -z "$(env_get HERMES_TRUSTED_PROXIES)" ]; then
   env_set HERMES_TRUSTED_PROXIES "$SETUP_TRUSTED_PROXIES"
+fi
+# A certificate of your own: Caddy serves it and asks Let's Encrypt for none,
+# e.g. when only a proxy that checks it against its own authority reaches the
+# Webapp. Given again, it replaces the one there.
+if [ -n "${SETUP_TLS_CERT:-}${SETUP_TLS_KEY:-}" ]; then
+  [ -n "${SETUP_TLS_CERT:-}" ] && [ -n "${SETUP_TLS_KEY:-}" ] ||
+    die "SETUP_TLS_CERT and SETUP_TLS_KEY go together"
+  grep -q -- '-----BEGIN CERTIFICATE-----' <<<"$SETUP_TLS_CERT" || die "SETUP_TLS_CERT is not a PEM certificate"
+  grep -q -- '-----BEGIN .*PRIVATE KEY-----' <<<"$SETUP_TLS_KEY" || die "SETUP_TLS_KEY is not a PEM private key"
+  [ -z "${SETUP_TLS_CA:-}" ] || grep -q -- '-----BEGIN CERTIFICATE-----' <<<"$SETUP_TLS_CA" ||
+    die "SETUP_TLS_CA is not a PEM certificate"
+  (
+    umask 077
+    mkdir -p instance/tls
+    printf '%s\n' "$SETUP_TLS_KEY" > instance/tls/key.pem
+    printf '%s\n' "$SETUP_TLS_CERT" > instance/tls/cert.pem
+    if [ -n "${SETUP_TLS_CA:-}" ]; then printf '%s\n' "$SETUP_TLS_CA" > instance/tls/ca.pem
+    else rm -f instance/tls/ca.pem; fi
+    # The key is not encrypted like the secrets: keep it out of the instance repository.
+    printf 'key.pem\n' > instance/tls/.gitignore
+    printf '%s\n' "# Written by setup.sh (SETUP_TLS_CERT): this certificate instead of Let's Encrypt's." \
+      "tls /etc/caddy/tls/cert.pem /etc/caddy/tls/key.pem" > instance/tls/own.caddy
+  )
+  chmod 644 instance/tls/cert.pem instance/tls/own.caddy instance/tls/.gitignore
+  [ ! -f instance/tls/ca.pem ] || chmod 644 instance/tls/ca.pem
+  # A running Caddy reads certificate files only when it starts.
+  if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx hermes-caddy; then
+    docker restart hermes-caddy >/dev/null || die "could not restart Caddy for the new certificate"
+  fi
 fi
 DATA_DIR="$(env_get HERMES_DATA_DIR)"; DATA_DIR="${DATA_DIR:-/home/hermes}"
 RUN_UID="$(env_get HERMES_UID)";       RUN_UID="${RUN_UID:-1000}"

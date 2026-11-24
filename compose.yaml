@@ -117,6 +117,8 @@ services:
       HERMES_TRUSTED_PROXIES: ${HERMES_TRUSTED_PROXIES:-127.0.0.1/32}
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # A certificate of your own, if any (setup.sh, SETUP_TLS_CERT).
+      - ./instance/tls:/etc/caddy/tls:ro
       # Certificates. Losing this volume only means they are issued again.
       - caddy-data:/data
       - caddy-config:/config

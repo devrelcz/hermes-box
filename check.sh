@@ -22,7 +22,10 @@ warn() { [ "$quiet" -eq 1 ] || printf 'warn  %s\n' "$1"; }
 # check <name> <command...>: passes when the command succeeds
 check() { local name="$1"; shift; if "$@" >/dev/null 2>&1; then ok "$name"; else fail "$name"; fi; }
 
-http_code() { curl -s -o /dev/null --max-time 15 -w '%{http_code}' "$1" 2>/dev/null; }
+# A certificate of your own is checked against its authority (instance/tls/ca.pem).
+CA_FILE="$REPO_DIR/instance/tls/ca.pem"
+curl_ca=(); [ ! -f "$CA_FILE" ] || curl_ca=(--cacert "$CA_FILE")
+http_code() { curl -s -o /dev/null --max-time 15 -w '%{http_code}' "${curl_ca[@]}" "$1" 2>/dev/null; }
 is_up()     { case "$(http_code "$1")" in 200|301|302) return 0 ;; *) return 1 ;; esac; }
 
 # ── Data ─────────────────────────────────────────────────────────────────────

@@ -234,6 +234,30 @@ public part; that has to be added to the recipients of the secrets (see
 The `.env` file in the root is only a link to `instance/.env`, created by
 `install.sh`.
 
+## A certificate of your own
+
+By default Caddy gets the Webapp's certificate from Let's Encrypt, which needs
+port 80 open to the world. When the Webapp is reached only through a proxy of
+your own, the proxy can check a certificate from your own authority instead,
+and the server needs no public certificate at all. Give it to `setup.sh`:
+
+```bash
+SETUP_TLS_CERT="$(cat cert.pem)" SETUP_TLS_KEY="$(cat key.pem)" \
+SETUP_TLS_CA="$(cat ca.pem)" ./setup.sh
+```
+
+The certificate is for `HERMES_DOMAIN`. It lands in `instance/tls/`:
+`cert.pem`, `key.pem`, `ca.pem` (the authority; `check.sh` trusts it for its
+HTTPS checks) and `own.caddy`, which tells Caddy to serve them. The key is not
+encrypted, so `instance/tls/.gitignore` keeps it out of the instance
+repository; after a restore, give the certificate again. Running `setup.sh`
+with a new one replaces it and restarts Caddy. Delete `instance/tls/own.caddy`
+and restart Caddy to go back to Let's Encrypt.
+
+Every `*.caddy` file in `instance/tls/` is imported into the Webapp's site in
+`caddy/Caddyfile`, so another `tls` setting (for example a DNS challenge) can
+go there too.
+
 ## Updating by hand
 
 A new version is a new image. The [README](../README.md#updating) has the

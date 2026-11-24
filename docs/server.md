@@ -57,6 +57,8 @@ Outside the data directory:
 - the server's private key
 - the Docker volumes `hermes_caddy-data` and `hermes_caddy-config` –
   certificates; if lost, they are issued again
+- a certificate of your own, if any, in `instance/tls/` (its key is not in
+  the instance repository; see [Installation](installation.md#a-certificate-of-your-own))
 
 Three things that are not obvious at first sight:
 
