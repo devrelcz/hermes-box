@@ -2,7 +2,7 @@
 # One-command installation on an empty server. Nothing has to be on the
 # server beforehand except curl:
 #
-#   curl -fsSL https://raw.githubusercontent.com/devrelcz/hermes-box/master/get.sh | sudo bash
+#   curl -fsSL https://raw.githubusercontent.com/hobcrew-com/hermes-box/master/get.sh | sudo bash
 #
 # It installs what the installer itself needs (python3, openssl), starts the
 # installer on this server and prints its address. The installer is an HTTPS
@@ -39,7 +39,7 @@
 #
 # Settings, through the environment (`sudo VAR=value bash`):
 #
-#   INSTALL_IMAGE=ghcr.io/devrelcz/hermes-box:1   which release, e.g. :1.0.0
+#   INSTALL_IMAGE=ghcr.io/hobcrew-com/hermes-box:1   which release, e.g. :1.0.0
 #   INSTALL_DIR=/opt/hermes-box                      where the files go
 #   INSTALL_PORT=8443                                the installer's port
 #   INSTALL_BIND=0.0.0.0                             127.0.0.1: reachable through an SSH tunnel only
@@ -56,7 +56,7 @@ set -euo pipefail
 # Everything is in a function that is called on the last line: a download cut
 # off halfway then runs nothing instead of half of the script.
 main() {
-  local image="${INSTALL_IMAGE:-ghcr.io/devrelcz/hermes-box:1}"
+  local image="${INSTALL_IMAGE:-ghcr.io/hobcrew-com/hermes-box:1}"
   local dir="${INSTALL_DIR:-/opt/hermes-box}"
   local update=0 confirmed=0 terminal=0 arg
   local -a setup_args=()
@@ -159,7 +159,7 @@ usage() {
   cat <<'EOF'
 Installs Hermes Agent in Docker on this server.
 
-  curl -fsSL https://raw.githubusercontent.com/devrelcz/hermes-box/master/get.sh | sudo bash
+  curl -fsSL https://raw.githubusercontent.com/hobcrew-com/hermes-box/master/get.sh | sudo bash
 
 It starts a temporary installer on this server (an HTTPS API and a page)
 and prints its address; the installation is started and watched there.
@@ -170,7 +170,7 @@ and prints its address; the installation is started and watched there.
   --verbose    show every command's output, not a progress line
   --yes        terminal only: do not ask before starting
 
-Environment: INSTALL_IMAGE (default ghcr.io/devrelcz/hermes-box:1),
+Environment: INSTALL_IMAGE (default ghcr.io/hobcrew-com/hermes-box:1),
 INSTALL_DIR (default /opt/hermes-box), INSTALL_PORT (default 8443),
 INSTALL_BIND (default 0.0.0.0), INSTALL_REF (the release the installer's
 files come from), SETUP_* (answers for the wizard; with SETUP_DOMAIN the
@@ -186,7 +186,7 @@ WEB_UNIT=hermes-box-installer
 # installer-sums: begin (written by installer/sums.sh)
 WEB_SUMS="
 e9f5f59d7515f189e3d5c31b9bf91f7c98664235f28059364331acd1f29edd74  server.py
-3c15191d53d21ed95b98a74578f3883da02b5758b61f002d6527c35cb5579ebe  steps.sh
+223caa5369e6e2d046615ff81cda5aea8487f4ddd37b10df02b4a5006150f7b3  steps.sh
 7901e94c11b9ae526ffc03b0301a1dbf7ba429b331e4e661fb188b637b73f211  index.html
 "
 # installer-sums: end
@@ -249,7 +249,7 @@ web_files() {  # <source>
 web_mismatch() {
   echo "This script and the installer's files have to come from the same release."
   echo "Take get.sh from that release as well, for example:"
-  echo "  curl -fsSL https://raw.githubusercontent.com/devrelcz/hermes-box/v<version>/get.sh | sudo INSTALL_IMAGE=ghcr.io/devrelcz/hermes-box:<version> bash"
+  echo "  curl -fsSL https://raw.githubusercontent.com/hobcrew-com/hermes-box/v<version>/get.sh | sudo INSTALL_IMAGE=ghcr.io/hobcrew-com/hermes-box:<version> bash"
   echo "A release older than the installer has none: add --terminal."
 }
 
@@ -291,7 +291,7 @@ web_address() {  # <address> <port> <bind>
 web_installer() {  # <image> <installation directory>
   local port="${INSTALL_PORT:-8443}" bind="${INSTALL_BIND:-0.0.0.0}"
   local source
-  source="${INSTALL_SOURCE:-https://raw.githubusercontent.com/devrelcz/hermes-box/$(web_ref "$1")/installer}"
+  source="${INSTALL_SOURCE:-https://raw.githubusercontent.com/hobcrew-com/hermes-box/$(web_ref "$1")/installer}"
   local address tool missing="" up=0
   local -a pass=()
   address="$(server_ip || true)"

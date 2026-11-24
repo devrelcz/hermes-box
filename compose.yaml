@@ -114,6 +114,7 @@ services:
     network_mode: host
     environment:
       HERMES_DOMAIN: ${HERMES_DOMAIN:?set it in instance/.env}
+      HERMES_TRUSTED_PROXIES: ${HERMES_TRUSTED_PROXIES:-127.0.0.1/32}
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       # Certificates. Losing this volume only means they are issued again.

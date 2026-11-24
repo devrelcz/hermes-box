@@ -19,7 +19,7 @@ Three containers. The first two use the `host` network mode:
 
 | Container | Image | What it does | Where it listens |
 | --- | --- | --- | --- |
-| `hermes` | `ghcr.io/devrelcz/hermes-box:<version>`, or `hermes-agent-local` built from the `Dockerfile` | gateway: agent, cron, sessions, Bots; plus the Webapp and dashboard | Webapp `127.0.0.1:9120`, dashboard `127.0.0.1:9119` |
+| `hermes` | `ghcr.io/hobcrew-com/hermes-box:<version>`, or `hermes-agent-local` built from the `Dockerfile` | gateway: agent, cron, sessions, Bots; plus the Webapp and dashboard | Webapp `127.0.0.1:9120`, dashboard `127.0.0.1:9119` |
 | `hermes-caddy` | `caddy:2.11` | TLS and reverse proxy | `80`, `443` |
 | `hermes-searxng` | `searxng/searxng` (version in `compose.yaml`) | web search for the agent | `127.0.0.1:8888` |
 

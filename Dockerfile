@@ -121,7 +121,7 @@ ARG HERMES_BOX_IMAGE=
 RUN if [ -n "$HERMES_BOX_IMAGE" ]; then \
       printf '# Written when the image was published; read by install.sh and compose.\nHERMES_BOX_IMAGE=%s\n' "$HERMES_BOX_IMAGE" > /opt/hermes-box/release.env; \
     fi
-LABEL org.opencontainers.image.source="https://github.com/devrelcz/hermes-box" \
+LABEL org.opencontainers.image.source="https://github.com/hobcrew-com/hermes-box" \
       org.opencontainers.image.licenses="MIT"
 ENTRYPOINT ["/usr/local/bin/secrets-entrypoint"]
 CMD []
