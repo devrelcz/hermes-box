@@ -82,7 +82,8 @@ jobs:
           docker run --rm --network none -v "$out:/out" --entrypoint hermes-box-extract "$IMAGE:$VERSION"
           for file in compose.yaml install.sh setup.sh pair.sh check.sh sops.sh lib/ui.sh release.env \
                       backup/hermes-backup.sh monitor/hermes-monitor.sh server/hermes-docker.service \
-                      caddy/Caddyfile instance.example/env.example docs/installation.md; do
+                      caddy/Caddyfile searxng/settings.yml plugins/hermes_box/provider.py \
+                      instance.example/env.example docs/installation.md; do
             test -s "$out/$file" || { echo "missing in the image: $file"; exit 1; }
           done
           test -x "$out/setup.sh" && test -x "$out/pair.sh"
@@ -93,6 +94,15 @@ jobs:
           # compose.yaml accepts the extracted files and runs the published image.
           printf 'HERMES_DOMAIN=agent.example.com\n' | sudo tee "$out/.env" >/dev/null
           (cd "$out" && HERMES_BOX_IMAGE="$IMAGE:$VERSION" docker compose config) | grep -q "image: $IMAGE:$VERSION"
+          # Every file or directory compose.yaml mounts from the installation
+          # is in the image (instance/ excepted). Docker would make a missing
+          # one an empty directory on the server.
+          (cd "$out" && HERMES_BOX_IMAGE="$IMAGE:$VERSION" docker compose config --format json) |
+            jq -r '.services[].volumes[]? | select(.type == "bind") | .source' |
+            while read -r source; do
+              case "$source" in "$out"/instance/*) continue ;; "$out"/*) ;; *) continue ;; esac
+              test -e "$source" || { echo "compose.yaml mounts ${source#"$out"/}, which is not in the image"; exit 1; }
+            done
 
       - name: Publish
         if: github.ref_type == 'tag'
