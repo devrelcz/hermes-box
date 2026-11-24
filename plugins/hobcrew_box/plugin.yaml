@@ -1,0 +1,7 @@
+name: web-hobcrew-box
+version: 1.0.0
+description: "Web search through the SearXNG on this server (SEARXNG_URL) and page reading on this server, without an outside service. Added by HobCrew Box."
+author: hobcrew-box
+kind: backend
+provides_web_providers:
+  - hobcrew-box

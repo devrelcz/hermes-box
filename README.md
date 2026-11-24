@@ -1,10 +1,11 @@
-# Hermes Agent in Docker
+# HobCrew Box
 
-Runs [Hermes Agent](https://github.com/NousResearch/hermes-agent) on your own
+HobCrew Box runs [Hermes Agent](https://github.com/NousResearch/hermes-agent) on your own
 server: the agent with its cron jobs, the Webapp (Hermes Desktop in a browser,
 including Bots) on your domain, and a daily backup.
 
-One command installs it on an empty server. The server ends up with Docker
+One command installs it on an empty server. HobCrew Box is not made, endorsed
+or supported by Nous Research, the makers of Hermes Agent. The server ends up with Docker
 and one private key; the secrets are encrypted files, so no outside service
 holds them.
 
@@ -21,7 +22,7 @@ like any other name.
 ## Install
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/hobcrew-com/hermes-box/master/get.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/hobcrew-com/hobcrew-box/master/get.sh | sudo bash
 ```
 
 <p>
@@ -57,19 +58,19 @@ The page is one client of an API; the installation can be driven with `curl`
 as well, see [Installation in detail](docs/installation.md#the-installers-api).
 To answer in the terminal instead, add `--terminal`
 (`... | sudo bash -s -- --terminal`). The output of the long steps is in
-`/var/log/hermes-box-setup.log`.
+`/var/log/hobcrew-box-setup.log`.
 
 Two things to do right after the installation:
 
 - Copy the private key `/etc/hermes/credentials/age.key` off the server, for
   example into a password manager. Without it the secrets and the backups
   cannot be read.
-- Keep the directory `/opt/hermes-box/instance/` off the server too, best as
+- Keep the directory `/opt/hobcrew-box/instance/` off the server too, best as
   a private git repository. It holds this installation's settings and
   encrypted secrets.
 
 The setup can be run again at any time (the same command, or
-`cd /opt/hermes-box && ./setup.sh` in the terminal); it skips what is already
+`cd /opt/hobcrew-box && ./setup.sh` in the terminal); it skips what is already
 done. For an unattended installation, an
 installation without piping a script into a shell, or one from git, see
 [Installation in detail](docs/installation.md).
@@ -82,7 +83,7 @@ scan a QR code. The installer offers the code at the end of the installation.
 Later:
 
 ```bash
-cd /opt/hermes-box && ./pair.sh
+cd /opt/hobcrew-box && ./pair.sh
 ```
 
 `pair.sh` sets a new Webapp password, because the server stores only a hash
@@ -110,7 +111,7 @@ much more than the model.
 
 ## Everyday commands
 
-Run them as root in `/opt/hermes-box`.
+Run them as root in `/opt/hobcrew-box`.
 
 Check everything at once (services, containers, web, certificate, backup,
 disk space). It exits with an error when something is wrong:
@@ -151,13 +152,13 @@ docker exec -it -u 1000:1000 -e HOME=/opt/data hermes hermes --help
 ## Updating
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/hobcrew-com/hermes-box/master/get.sh | sudo bash -s -- --update
+curl -fsSL https://raw.githubusercontent.com/hobcrew-com/hobcrew-box/master/get.sh | sudo bash -s -- --update
 ```
 
 This fetches the latest release and restarts the stack. Your settings and
 data stay as they are. Run a backup first: `systemctl start hermes-backup`.
 
-Which version is running: `cat /opt/hermes-box/release.env`. To go back to an
+Which version is running: `cat /opt/hobcrew-box/release.env`. To go back to an
 earlier one, or to update by hand, see
 [Installation in detail](docs/installation.md#updating-by-hand).
 

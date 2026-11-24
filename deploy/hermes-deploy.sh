@@ -32,8 +32,9 @@ RESTART_PATHS='^(compose\.yaml|Dockerfile|docker/|caddy/|instance/(\.env|compose
 BUILD_PATHS='^(Dockerfile|docker/)'
 
 # The labels the Dockerfile gives every build of this image: the current one,
-# and the ones builds had before the repository moved to hobcrew-com.
-IMAGE_LABELS='org.opencontainers.image.source=https://github.com/hobcrew-com/hermes-box
+# and the ones builds had before the project was renamed to HobCrew Box.
+IMAGE_LABELS='org.opencontainers.image.source=https://github.com/hobcrew-com/hobcrew-box
+org.opencontainers.image.source=https://github.com/hobcrew-com/hermes-box
 org.opencontainers.image.source=https://github.com/devrelcz/hermes-box
 org.opencontainers.image.source=https://github.com/danielrataj/hermes-box'
 

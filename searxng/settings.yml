@@ -7,7 +7,7 @@
 use_default_settings: true
 
 general:
-  instance_name: hermes-box
+  instance_name: hobcrew-box
 
 server:
   # The limiter tells people from bots; here the only client is the agent,

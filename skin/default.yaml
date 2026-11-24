@@ -1,4 +1,4 @@
-# hermes-box: managed by install.sh (remove this line to keep your own changes)
+# hobcrew-box: managed by install.sh (remove this line to keep your own changes)
 #
 # Makes the Webapp easier to use on a phone or tablet. Hermes reads this file
 # from <data>/.hermes/skins/default.yaml and puts customCSS into the page as a

@@ -43,18 +43,18 @@ RUN set -e; for tool in uv uvx; do \
       ln -s "$bin" "/usr/local/bin/$tool"; \
     done; uv --version
 
-# The agent's web backend (plugins/hermes_box): web_search through the SearXNG
+# The agent's web backend (plugins/hobcrew_box): web_search through the SearXNG
 # in compose.yaml, web_extract reading pages on this server, so no outside
 # service sees what the agent looks up or reads. It goes where Hermes keeps its
 # own web backends and loads like one of them; install.sh selects it
-# (web.backend: hermes-box). trafilatura and markdownify turn pages into
+# (web.backend: hobcrew-box). trafilatura and markdownify turn pages into
 # markdown; pypdf, for PDFs, is in the image already. The build fails if the
 # plugin no longer loads in a newer Hermes; adapt it then.
 RUN uv pip install --quiet --python /opt/hermes/.venv/bin/python \
       trafilatura==2.3.1 markdownify==1.2.3 beautifulsoup4==4.15.0
-COPY plugins/hermes_box /opt/hermes/plugins/web/hermes_box
+COPY plugins/hobcrew_box /opt/hermes/plugins/web/hobcrew_box
 RUN cd /opt/hermes && home="$(mktemp -d)" \
- && HERMES_HOME="$home" HOME="$home" .venv/bin/python -W ignore -c 'from hermes_cli.plugins import discover_plugins; discover_plugins(force=True); from agent.web_search_registry import get_provider; p = get_provider("hermes-box"); assert p is not None and p.supports_extract(), p; import trafilatura, markdownify, pypdf' \
+ && HERMES_HOME="$home" HOME="$home" .venv/bin/python -W ignore -c 'from hermes_cli.plugins import discover_plugins; discover_plugins(force=True); from agent.web_search_registry import get_provider; p = get_provider("hobcrew-box"); assert p is not None and p.supports_extract(), p; import trafilatura, markdownify, pypdf' \
  && rm -rf "$home"
 
 # pnpm, which Hermes wants in the data directory (<data>/.hermes/tools) and
@@ -68,9 +68,9 @@ RUN home="$(mktemp -d)" \
  && grep -q '"pnpm"' "$home/tools/facts.json" \
  && ls -d "$home"/tools/pnpm-* >/dev/null \
  && rm -f "$home/tools/.install.lock" \
- && mv "$home/tools" /opt/hermes-box-tools \
+ && mv "$home/tools" /opt/hobcrew-box-tools \
  && rm -rf "$home" \
- && chmod -R a+rX /opt/hermes-box-tools
+ && chmod -R a+rX /opt/hobcrew-box-tools
 
 # Mail CLI used by cron jobs. The checksum is the one GitHub publishes for the
 # release asset; the build fails if the download differs.
@@ -116,33 +116,33 @@ COPY --chmod=0755 docker/secrets-entrypoint.sh /usr/local/bin/secrets-entrypoint
 # (compose.yaml, the scripts, the systemd units), so that an installation
 # needs nothing but this image: docker/extract.sh copies them to the host.
 # Only what is listed here goes in; instance/ never does (see .dockerignore).
-COPY --chmod=0755 docker/extract.sh /usr/local/bin/hermes-box-extract
-COPY compose.yaml install.sh setup.sh pair.sh check.sh sops.sh Dockerfile README.md LICENSE /opt/hermes-box/
-COPY backup /opt/hermes-box/backup
-COPY caddy /opt/hermes-box/caddy
-COPY deploy /opt/hermes-box/deploy
-COPY docs /opt/hermes-box/docs
-COPY docker /opt/hermes-box/docker
-COPY installer /opt/hermes-box/installer
-COPY instance.example /opt/hermes-box/instance.example
-COPY lib /opt/hermes-box/lib
-COPY monitor /opt/hermes-box/monitor
-# A local build on the host (no HERMES_BOX_IMAGE) needs the plugin, too.
-COPY plugins /opt/hermes-box/plugins
+COPY --chmod=0755 docker/extract.sh /usr/local/bin/hobcrew-box-extract
+COPY compose.yaml install.sh setup.sh pair.sh check.sh sops.sh Dockerfile README.md LICENSE /opt/hobcrew-box/
+COPY backup /opt/hobcrew-box/backup
+COPY caddy /opt/hobcrew-box/caddy
+COPY deploy /opt/hobcrew-box/deploy
+COPY docs /opt/hobcrew-box/docs
+COPY docker /opt/hobcrew-box/docker
+COPY installer /opt/hobcrew-box/installer
+COPY instance.example /opt/hobcrew-box/instance.example
+COPY lib /opt/hobcrew-box/lib
+COPY monitor /opt/hobcrew-box/monitor
+# A local build on the host (no HOBCREW_BOX_IMAGE) needs the plugin, too.
+COPY plugins /opt/hobcrew-box/plugins
 # compose.yaml mounts searxng/settings.yml into the SearXNG container. A path
 # missing on the host would become an empty directory there, and SearXNG
 # would refuse to start.
-COPY searxng /opt/hermes-box/searxng
-COPY server /opt/hermes-box/server
-COPY skin /opt/hermes-box/skin
+COPY searxng /opt/hobcrew-box/searxng
+COPY server /opt/hobcrew-box/server
+COPY skin /opt/hobcrew-box/skin
 # A published image knows its own name: release.env tells the scripts on the
 # host which image to run, instead of building one there. Empty for a local
 # build, which then keeps the name hermes-agent-local.
-ARG HERMES_BOX_IMAGE=
-RUN if [ -n "$HERMES_BOX_IMAGE" ]; then \
-      printf '# Written when the image was published; read by install.sh and compose.\nHERMES_BOX_IMAGE=%s\n' "$HERMES_BOX_IMAGE" > /opt/hermes-box/release.env; \
+ARG HOBCREW_BOX_IMAGE=
+RUN if [ -n "$HOBCREW_BOX_IMAGE" ]; then \
+      printf '# Written when the image was published; read by install.sh and compose.\nHOBCREW_BOX_IMAGE=%s\n' "$HOBCREW_BOX_IMAGE" > /opt/hobcrew-box/release.env; \
     fi
-LABEL org.opencontainers.image.source="https://github.com/hobcrew-com/hermes-box" \
+LABEL org.opencontainers.image.source="https://github.com/hobcrew-com/hobcrew-box" \
       org.opencontainers.image.licenses="MIT"
 ENTRYPOINT ["/usr/local/bin/secrets-entrypoint"]
 CMD []

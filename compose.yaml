@@ -30,7 +30,7 @@ x-logging: &logging
 
 services:
   gateway:
-    # A published image (HERMES_BOX_IMAGE, from release.env or instance/.env)
+    # A published image (HOBCREW_BOX_IMAGE, from release.env or instance/.env)
     # is pulled; without one the image is built here from the Dockerfile.
     build:
       context: .
@@ -38,7 +38,7 @@ services:
         # Empty: the Hermes version pinned in the Dockerfile, which includes
         # Bot Desktop. Set it to e.g. v0.23.3 for an image without it.
         HERMES_IMAGE_TAG: ${HERMES_IMAGE_TAG:-}
-    image: ${HERMES_BOX_IMAGE:-hermes-agent-local}
+    image: ${HOBCREW_BOX_IMAGE:-hermes-agent-local}
     container_name: hermes
     logging: *logging
     # Started by hermes-docker.service. `docker compose up` keeps running while
@@ -84,7 +84,7 @@ services:
       # jobs keep their state files under those absolute paths. The check
       # compares path prefixes, so each mount has to be listed.
       HERMES_WRITE_SAFE_ROOT: "/opt/data:/home/hermes/.hermes:/home/hermes/openknowledge:/home/hermes/projects:/home/hermes/.local/bin"
-      # The SearXNG below; the agent's web_search asks it (plugins/hermes_box).
+      # The SearXNG below; the agent's web_search asks it (plugins/hobcrew_box).
       SEARXNG_URL: http://127.0.0.1:8888
 
     volumes:
@@ -126,7 +126,7 @@ services:
   # ── SearXNG ────────────────────────────────────────────────────────────────
   # The search engine behind the agent's web_search: it asks several search
   # engines at once (searxng/settings.yml says which) and needs no API key.
-  # Pages are read by the agent itself (plugins/hermes_box), not here. The API
+  # Pages are read by the agent itself (plugins/hobcrew_box), not here. The API
   # has no authentication, which is why it is published on loopback only.
   searxng:
     image: searxng/searxng:2026.11.21-c6ee3e9fd

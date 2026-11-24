@@ -7,13 +7,13 @@
 #
 # Settings, through the environment:
 #
-#   HERMES_BOX_VERBOSE=1     show every command's output instead of a progress line
-#   HERMES_BOX_LOG=<file>    where that output goes (default /var/log/hermes-box-setup.log)
-#   HERMES_BOX_EVENTS=1      announce every step on stdout, for the installer's API
+#   HOBCREW_BOX_VERBOSE=1     show every command's output instead of a progress line
+#   HOBCREW_BOX_LOG=<file>    where that output goes (default /var/log/hobcrew-box-setup.log)
+#   HOBCREW_BOX_EVENTS=1      announce every step on stdout, for the installer's API
 #   NO_COLOR=1               no colours
 
-UI_LOG="${HERMES_BOX_LOG:-/var/log/hermes-box-setup.log}"
-UI_VERBOSE="${HERMES_BOX_VERBOSE:-0}"
+UI_LOG="${HOBCREW_BOX_LOG:-/var/log/hobcrew-box-setup.log}"
+UI_VERBOSE="${HOBCREW_BOX_VERBOSE:-0}"
 # What an interrupted run tells the user; the script sets its own.
 UI_INTERRUPT_HINT=""
 UI_PID=""
@@ -65,14 +65,14 @@ ui_duration() {  # <seconds>
 }
 
 # For a program that runs the script and shows its progress (the installer's
-# API, installer/server.py): with HERMES_BOX_EVENTS=1 every step is announced
+# API, installer/server.py): with HOBCREW_BOX_EVENTS=1 every step is announced
 # on stdout as "@@step start|<title>" and "@@step end|<status>|<title>".
-ui_event() { [ "${HERMES_BOX_EVENTS:-0}" != 1 ] || printf '@@step %s\n' "$1"; }
+ui_event() { [ "${HOBCREW_BOX_EVENTS:-0}" != 1 ] || printf '@@step %s\n' "$1"; }
 
 # Run one step: its output goes to the log, the terminal shows a spinner and
 # how long it has taken. step stops the script when the step fails, after
 # showing the end of the log; step_try only sets STEP_STATUS. With
-# HERMES_BOX_VERBOSE=1 the output is shown as well.
+# HOBCREW_BOX_VERBOSE=1 the output is shown as well.
 STEP_STATUS=0
 step_try() {  # <title> <command...>
   local title="$1" started="$SECONDS" i=0 frames
@@ -215,12 +215,12 @@ ask() {
   printf '%s' "${answer:-${3:-}}"
 }
 
-# The first screen of a new installation: what Hermes Box is, what is about
+# The first screen of a new installation: what HobCrew Box is, what is about
 # to happen and what ends up on the server. get.sh shows the same text.
 ui_intro() {  # <installation directory> <data directory> <key file>
   cat <<EOF
 
-  ${UI_B}Hermes Box${UI_N} ${UI_D}· Hermes Agent on your own server${UI_N}
+  ${UI_B}HobCrew Box${UI_N} ${UI_D}· Hermes Agent on your own server${UI_N}
 
   Hermes Agent (by Nous Research) is an AI assistant that works on its own:
   it keeps a memory, runs scheduled jobs, searches the web and uses a browser.
@@ -229,7 +229,7 @@ ui_intro() {  # <installation directory> <data directory> <key file>
 
   ${UI_B}What happens now${UI_N}
     1. Docker is installed, if it is missing.
-    2. Hermes Box is downloaded: about 5 GB, the longest part.
+    2. HobCrew Box is downloaded: about 5 GB, the longest part.
     3. A few questions: the web address, a user name and password, the model.
     4. Everything is set up and started: HTTPS, a daily backup, a health check.
     It takes 10 to 20 minutes. Running it again skips the finished steps.

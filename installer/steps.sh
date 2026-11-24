@@ -18,8 +18,8 @@
 
 set -euo pipefail
 
-IMAGE="${INSTALL_IMAGE:-ghcr.io/hobcrew-com/hermes-box:1}"
-DIR="${INSTALL_DIR:-/opt/hermes-box}"
+IMAGE="${INSTALL_IMAGE:-ghcr.io/hobcrew-com/hobcrew-box:1}"
+DIR="${INSTALL_DIR:-/opt/hobcrew-box}"
 
 die() { printf 'installer: %s\n' "$*" >&2; exit 1; }
 
@@ -35,8 +35,8 @@ data_dir() {
 # The image this installation runs, as install.sh works it out.
 image_ref() {
   local ref
-  ref="$(env_get HERMES_BOX_IMAGE)"
-  [ -n "$ref" ] || ref="$(sed -n 's/^HERMES_BOX_IMAGE=//p' "$DIR/release.env" 2>/dev/null | tail -n1)"
+  ref="$(env_get HOBCREW_BOX_IMAGE)"
+  [ -n "$ref" ] || ref="$(sed -n 's/^HOBCREW_BOX_IMAGE=//p' "$DIR/release.env" 2>/dev/null | tail -n1)"
   printf '%s' "${ref:-$IMAGE}"
 }
 
@@ -103,14 +103,14 @@ step_extract() {
     return 0
   fi
   mkdir -p "$DIR"
-  docker run --rm --network none -v "$DIR:/out" --entrypoint hermes-box-extract "$IMAGE"
+  docker run --rm --network none -v "$DIR:/out" --entrypoint hobcrew-box-extract "$IMAGE"
 }
 
 step_setup() {
   cd "$DIR"
   # The model is chosen in Hermes' own wizard, which needs a terminal; the
   # code for the mobile app is drawn by the page.
-  HERMES_BOX_INTRO_SHOWN=1 SETUP_MODEL=skip SETUP_PAIR=no exec ./setup.sh
+  HOBCREW_BOX_INTRO_SHOWN=1 SETUP_MODEL=skip SETUP_PAIR=no exec ./setup.sh
 }
 
 # One line per fact: "need domain", "need login", then "<key> <value>".

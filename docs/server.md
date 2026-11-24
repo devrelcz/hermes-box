@@ -19,7 +19,7 @@ Three containers. The first two use the `host` network mode:
 
 | Container | Image | What it does | Where it listens |
 | --- | --- | --- | --- |
-| `hermes` | `ghcr.io/hobcrew-com/hermes-box:<version>`, or `hermes-agent-local` built from the `Dockerfile` | gateway: agent, cron, sessions, Bots; plus the Webapp and dashboard | Webapp `127.0.0.1:9120`, dashboard `127.0.0.1:9119` |
+| `hermes` | `ghcr.io/hobcrew-com/hobcrew-box:<version>`, or `hermes-agent-local` built from the `Dockerfile` | gateway: agent, cron, sessions, Bots; plus the Webapp and dashboard | Webapp `127.0.0.1:9120`, dashboard `127.0.0.1:9119` |
 | `hermes-caddy` | `caddy:2.11` | TLS and reverse proxy | `80`, `443` |
 | `hermes-searxng` | `searxng/searxng` (version in `compose.yaml`) | web search for the agent | `127.0.0.1:8888` |
 
@@ -93,7 +93,7 @@ Three things that are not obvious at first sight:
 | `install.sh` | installation and deployment of changes |
 | `compose.yaml` | definition of the containers |
 | `Dockerfile` | the official Hermes image + `sops`, `age`, `uv` and `himalaya`; also carries the files in this table |
-| `docker/extract.sh` | extracts the files from the image onto the server (`hermes-box-extract`) |
+| `docker/extract.sh` | extracts the files from the image onto the server (`hobcrew-box-extract`) |
 | `release.env` | only for an installation from the image: which image is running |
 | `.github/workflows/image.yml` | image build and check, release on a `v*` tag |
 | `docker/secrets-entrypoint.sh` | on start, decrypts the secrets into the environment and into in-memory files |
@@ -146,10 +146,10 @@ The agent has two ways to the web, and they are set separately in
 `config.yaml`:
 
 - **`web_search` and `web_extract`** go through a backend. Here that is
-  `hermes-box`, which does both on this server; see below. Another backend can
+  `hobcrew-box`, which does both on this server; see below. Another backend can
   be chosen for either half. Some only search (`brave-free`, `ddgs`,
   `searxng`) and cannot read a page; reading needs one that also extracts
-  (`hermes-box`, `firecrawl`, `tavily`, `keenable`, `exa`, `parallel`):
+  (`hobcrew-box`, `firecrawl`, `tavily`, `keenable`, `exa`, `parallel`):
 
   ```bash
   docker exec -u 1000:1000 -e HOME=/opt/data hermes hermes config set web.search_backend brave-free
@@ -169,8 +169,8 @@ The agent has two ways to the web, and they are set separately in
 
 Searching and reading pages need no account, and no outside service sees
 what the agent looks up or reads. The image adds a web backend of its own,
-`hermes-box` ([`plugins/hermes_box`](../plugins/hermes_box/provider.py)), and
-`install.sh` sets `web.backend: hermes-box` in `config.yaml`, which makes it
+`hobcrew-box` ([`plugins/hobcrew_box`](../plugins/hobcrew_box/provider.py)), and
+`install.sh` sets `web.backend: hobcrew-box` in `config.yaml`, which makes it
 the backend for both halves. `web.search_backend` and `web.extract_backend`
 take precedence over `web.backend` and are not touched, so a different choice
 for one half goes there.
@@ -211,7 +211,7 @@ docker exec -u 1000:1000 -e HOME=/opt/data hermes hermes config set web.keyless_
 ```
 
 The backend is part of the image. An installation that runs an older
-published image (`HERMES_BOX_IMAGE` in `instance/.env`) with this checkout
+published image (`HOBCREW_BOX_IMAGE` in `instance/.env`) with this checkout
 keeps its `web.backend`; with no Firecrawl on the server any more, Hermes
 then searches and reads through the free tiers of public services until the
 image is updated.
@@ -275,7 +275,7 @@ into the page, and the Webapp picks a change up on the next page load.
 - To change the look, edit `skin/default.yaml` and deploy. Only CSS is
   possible, up to 32 KiB.
 - To keep a `default.yaml` of your own on the server, remove its first line
-  (`# hermes-box: managed …`); `install.sh` then leaves the file alone.
+  (`# hobcrew-box: managed …`); `install.sh` then leaves the file alone.
 - The selectors follow the Webapp of the pinned Hermes version. After
   [upgrading Hermes](installation.md#releasing-a-new-version), open the Webapp on a phone
   and check that the controls are still large.

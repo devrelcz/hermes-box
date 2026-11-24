@@ -51,7 +51,7 @@ from urllib.parse import parse_qs, urlsplit
 
 STEPS = [
     ("docker", "Docker"),
-    ("download", "Downloading Hermes Box"),
+    ("download", "Downloading HobCrew Box"),
     ("extract", "Unpacking the files"),
     ("setup", "Setting up and starting"),
 ]
@@ -224,7 +224,7 @@ class Installer:
             self.phase = "running"
 
     def _run_step(self, step):
-        env = dict(os.environ, HERMES_BOX_VERBOSE="1", HERMES_BOX_EVENTS="1", NO_COLOR="1", TERM="dumb")
+        env = dict(os.environ, HOBCREW_BOX_VERBOSE="1", HOBCREW_BOX_EVENTS="1", NO_COLOR="1", TERM="dumb")
         with self.cond:
             step.update(status="running", started=time.time(), finished=None, substeps=[])
             self._log(f"── {step['title']}")
@@ -393,7 +393,7 @@ class BoundedServer(ThreadingHTTPServer):
 def make_handler(installer, token, page, cleanup):
     class Handler(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
-        server_version = "hermes-box-installer"
+        server_version = "hobcrew-box-installer"
         sys_version = ""
         # Also the time a client has for the TLS handshake and between requests.
         timeout = 15
@@ -508,7 +508,7 @@ def make_handler(installer, token, page, cleanup):
 
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
-    parser = argparse.ArgumentParser(description="The Hermes Box installer's API.")
+    parser = argparse.ArgumentParser(description="The HobCrew Box installer's API.")
     parser.add_argument("--bind", default="0.0.0.0")
     parser.add_argument("--port", type=int, default=8443)
     parser.add_argument("--cert", required=True)
