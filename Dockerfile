@@ -111,6 +111,16 @@ RUN set -e; r=/opt/hermes/tools/bot_desktop/resources.py; d=/opt/hermes/hermes_c
  && rm -rf "$home"
 
 COPY --chmod=0755 docker/secrets-entrypoint.sh /usr/local/bin/secrets-entrypoint
+COPY --chmod=0755 docker/apps-secrets.sh /usr/local/bin/hobcrew-apps-secrets
+
+# App secrets for the Hobs (plugins/hobcrew_secrets): environment variables
+# for their commands, browser sign-ins, values masked in tool output. Loads
+# in every profile like a bundled backend. The build fails if it no longer
+# loads in a newer Hermes; adapt it then.
+COPY plugins/hobcrew_secrets /opt/hermes/plugins/hobcrew/secrets
+RUN cd /opt/hermes && home="$(mktemp -d)" \
+ && HERMES_HOME="$home" HOME="$home" .venv/bin/python -W ignore -c 'from hermes_cli.plugins import discover_plugins, get_plugin_manager; discover_plugins(force=True); p = get_plugin_manager()._plugins.get("hobcrew/secrets"); assert p is not None and p.enabled and not p.error, p; from tools.registry import registry; assert registry.get_entry("hobcrew_secrets") is not None' \
+ && rm -rf "$home"
 
 # The image also carries the files a server needs around the containers
 # (compose.yaml, the scripts, the systemd units), so that an installation

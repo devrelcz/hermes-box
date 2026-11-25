@@ -90,6 +90,10 @@ services:
     volumes:
       # The agent's secrets, encrypted; see docker/secrets-entrypoint.sh.
       - ./instance/secrets/hermes.enc.yaml:/etc/hermes/secrets.enc.yaml:ro
+      # The app secrets the customer gives the Hobs (docker/apps-secrets.sh). A
+      # directory, not the file: hobcrew.com replaces the file and the container
+      # re-reads it without a restart, which a bind-mounted file would not see.
+      - ./instance/secrets/apps:/etc/hermes/apps:ro
       - ${HERMES_DATA_DIR:-/home/hermes}/.hermes:/opt/data
       # Cron jobs and state files reference these absolute paths, so the
       # container side stays /home/hermes/... wherever the data lives.
