@@ -260,11 +260,40 @@ Every `*.caddy` file in `instance/tls/` is imported into the Webapp's site in
 `caddy/Caddyfile`, so another `tls` setting (for example a DNS challenge) can
 go there too.
 
-## Updating by hand
+## Updating
 
-A new version is a new image. The [README](../README.md#updating) has the
-one-command update. By hand: extract the files from the new image over the
-existing ones and deploy:
+An installation from the image (it has `release.env`) is updated with
+`update.sh`:
+
+| Command | What it does |
+| --- | --- |
+| `./update.sh` | the newest release of the same major version (`1.x`) |
+| `./update.sh --to 1.8.1` | exactly this release; an older one goes back to it |
+| `./update.sh --check` | which release runs, its Hermes version and whether a newer one exists (exit 10) |
+| `./update.sh --json` | ends with one line of JSON with the result, for a program |
+| `./update.sh --no-backup` | skips the backup it takes first |
+
+The steps:
+
+1. It looks the target release up in the registry and pulls its image.
+   Nothing on the server has changed until here.
+2. It runs a backup (`hermes-backup.service`).
+3. It waits until no cron job of the agent is about to start.
+4. It puts the release's files in place, runs `./install.sh` and restarts the stack.
+5. It runs `check.sh`. If that fails, it puts the previous release back the
+   same way and restarts again.
+6. When the new release passed, it removes the previous image (about 5 GB).
+
+The result goes to `instance/notify.sh`, if there is one. Exit codes: 0 updated
+or up to date, 1 failed with nothing changed, 3 failed and rolled back,
+4 failed and the previous release did not come back healthy either.
+
+Which release runs: the first line of `./check.sh`, or `cat release.env`.
+
+### By hand
+
+Without `update.sh` (releases before 1.8.2): extract the files from the new
+image over the existing ones and deploy:
 
 ```bash
 docker run --rm -v /opt/hobcrew-box:/out --entrypoint hobcrew-box-extract ghcr.io/hobcrew-com/hobcrew-box:1
@@ -278,7 +307,6 @@ Neither `instance/` nor the data changes. It is a good idea to run a backup
 before updating (`systemctl start hermes-backup`).
 
 Going back to a previous version is the same with its exact tag, e.g. `:1.0.0`.
-Which version is running: `cat /opt/hobcrew-box/release.env`.
 
 ## Installing from git
 
@@ -299,7 +327,7 @@ cd /opt/hobcrew-box && ./setup.sh
 
 This applies to an installation from git (see
 [Installing from git](#installing-from-git)); an installation from the image is
-changed as described in [Updating](../README.md#updating).
+changed as described in [Updating](#updating).
 
 **Automatically** (`AUTO_DEPLOY=true` in `instance/.env`): a `git push` is
 enough, whether to this repository or to the instance repository. Every

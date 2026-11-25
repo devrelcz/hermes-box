@@ -155,16 +155,31 @@ docker exec -it -u 1000:1000 -e HOME=/opt/data hermes hermes --help
 
 ## Updating
 
+On the server:
+
+```bash
+sudo /opt/hobcrew-box/update.sh
+```
+
+It updates to the newest release of the same major version, takes a backup
+first, waits until no scheduled job is about to start, restarts and runs the
+health check. If the check fails, it goes back to the previous release by
+itself. Your settings and data stay as they are.
+
+```bash
+sudo /opt/hobcrew-box/update.sh --check
+```
+
+says which release runs, with its Hermes version, and whether a newer one is
+available. `--to 1.8.1` updates (or goes back) to exactly that release.
+
+An installation older than 1.8.2 has no `update.sh` yet; update it once with:
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/hobcrew-com/hobcrew-box/master/get.sh | sudo bash -s -- --update
 ```
 
-This fetches the latest release and restarts the stack. Your settings and
-data stay as they are. Run a backup first: `systemctl start hermes-backup`.
-
-Which version is running: `cat /opt/hobcrew-box/release.env`. To go back to an
-earlier one, or to update by hand, see
-[Installation in detail](docs/installation.md#updating-by-hand).
+More in [Installation in detail](docs/installation.md#updating).
 
 ## Backup
 

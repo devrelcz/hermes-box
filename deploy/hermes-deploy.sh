@@ -23,6 +23,8 @@ REPO_DIR="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
 env_get() { [ -f "$REPO_DIR/.env" ] && sed -n "s/^$1=//p" "$REPO_DIR/.env" | tail -n1 || true; }
 # shellcheck source=monitor/notify.sh
 . "$REPO_DIR/monitor/notify.sh"
+# shellcheck source=lib/deploy.sh
+. "$REPO_DIR/lib/deploy.sh"
 
 STATE_DIR=/var/lib/hermes-deploy
 FAILED="$STATE_DIR/failed-commit"   # do not retry this one
@@ -41,12 +43,6 @@ org.opencontainers.image.source=https://github.com/danielrataj/hermes-box'
 host="$(hostname)"
 log() { printf 'deploy: %s\n' "$*"; }
 
-webapp_up() {
-  case "$(curl -s -o /dev/null --max-time 10 -w '%{http_code}' http://127.0.0.1:9120/ 2>/dev/null)" in
-    200|301|302) return 0 ;; *) return 1 ;;
-  esac
-}
-
 # Every build leaves the one before it without a name, several GB each, and
 # check.sh fails a deploy once the disk is 85% full. Remove the builds of this
 # image that have no name any more: not :latest, not :rollback. Docker keeps
@@ -56,44 +52,6 @@ prune_old_builds() {
   while IFS= read -r label; do
     docker image prune -f --filter "label=$label" >/dev/null 2>&1 || true
   done <<< "$IMAGE_LABELS"
-}
-
-# Restart the stack and wait until the Webapp answers and the checks pass.
-restart_and_check() {
-  systemctl restart hermes-docker.service || return 1
-  local i
-  for i in $(seq 1 100); do webapp_up && break; sleep 3; done
-  webapp_up || return 1
-  sleep 20   # let the gateway connect to its platforms
-  "$REPO_DIR/check.sh" --quiet
-}
-
-# Do not cut off a cron job that is about to start; running turns are drained
-# by the gateway itself when it stops.
-wait_for_quiet_moment() {
-  local data jobs i
-  data="$(env_get HERMES_DATA_DIR)"; jobs="${data:-/home/hermes}/.hermes/cron/jobs.json"
-  for i in $(seq 1 20); do
-    python3 - "$jobs" <<'PY' && return 0
-import datetime, json, sys
-try:
-    jobs = json.load(open(sys.argv[1])).get("jobs", [])
-except Exception:
-    sys.exit(0)
-now = datetime.datetime.now(datetime.timezone.utc)
-for job in jobs:
-    if not job.get("enabled"):
-        continue
-    try:
-        due = datetime.datetime.fromisoformat(job["next_run_at"])
-    except Exception:
-        continue
-    if -90 <= (due - now).total_seconds() <= 150:
-        sys.exit(1)   # a job starts within 2.5 minutes or started just now
-PY
-    sleep 30
-  done
-  return 0
 }
 
 main() {
