@@ -33,6 +33,22 @@ fi
 http_code() { curl -s -o /dev/null --max-time 15 -w '%{http_code}' "${curl_tls[@]}" "$1" 2>/dev/null; }
 is_up()     { case "$(http_code "$1")" in 200|301|302) return 0 ;; *) return 1 ;; esac; }
 
+# ── Release ──────────────────────────────────────────────────────────────────
+# Which release the files are from (release.env) and whether the container
+# runs the same one. An installation from git has no release.env.
+release_get() { sed -n "s/^$1=//p" "$REPO_DIR/release.env" 2>/dev/null | tail -n1; }
+release_image="$(env_get HOBCREW_BOX_IMAGE)"; [ -n "$release_image" ] || release_image="$(release_get HOBCREW_BOX_IMAGE)"
+if [ -n "$release_image" ]; then
+  hermes_version="$(release_get HERMES_VERSION)"
+  ok "HobCrew Box ${release_image##*:}${hermes_version:+, Hermes $hermes_version}"
+  running_image="$(docker inspect -f '{{.Config.Image}}' hermes 2>/dev/null || true)"
+  if [ -n "$running_image" ] && [ "$running_image" != "$release_image" ]; then
+    warn "the files are of ${release_image##*:} but the container runs ${running_image##*:}: ./install.sh --restart"
+  fi
+else
+  ok "HobCrew Box built from git ($(git -C "$REPO_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown))"
+fi
+
 # ── Data ─────────────────────────────────────────────────────────────────────
 check "data directory holds Hermes data ($DATA_DIR)" test -f "$DATA_DIR/.hermes/config.yaml"
 for path in / "$DATA_DIR"; do

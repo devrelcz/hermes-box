@@ -127,7 +127,7 @@ RUN cd /opt/hermes && home="$(mktemp -d)" \
 # needs nothing but this image: docker/extract.sh copies them to the host.
 # Only what is listed here goes in; instance/ never does (see .dockerignore).
 COPY --chmod=0755 docker/extract.sh /usr/local/bin/hobcrew-box-extract
-COPY compose.yaml install.sh setup.sh pair.sh check.sh sops.sh Dockerfile README.md LICENSE.md /opt/hobcrew-box/
+COPY compose.yaml install.sh setup.sh pair.sh check.sh sops.sh update.sh Dockerfile README.md LICENSE.md /opt/hobcrew-box/
 COPY backup /opt/hobcrew-box/backup
 COPY caddy /opt/hobcrew-box/caddy
 COPY deploy /opt/hobcrew-box/deploy
@@ -149,8 +149,13 @@ COPY skin /opt/hobcrew-box/skin
 # host which image to run, instead of building one there. Empty for a local
 # build, which then keeps the name hermes-agent-local.
 ARG HOBCREW_BOX_IMAGE=
+# It also names the release and the Hermes version in it, for check.sh and
+# update.sh.
 RUN if [ -n "$HOBCREW_BOX_IMAGE" ]; then \
-      printf '# Written when the image was published; read by install.sh and compose.\nHOBCREW_BOX_IMAGE=%s\n' "$HOBCREW_BOX_IMAGE" > /opt/hobcrew-box/release.env; \
+      hermes="$(HOME=/tmp /opt/hermes/bin/hermes --version 2>/dev/null | grep -o 'v[0-9][0-9.]*' | head -n1)" \
+      && [ -n "$hermes" ] \
+      && printf '# Written when the image was published; read by install.sh, compose, check.sh and update.sh.\nHOBCREW_BOX_IMAGE=%s\nHOBCREW_BOX_VERSION=%s\nHERMES_VERSION=%s\n' \
+           "$HOBCREW_BOX_IMAGE" "${HOBCREW_BOX_IMAGE##*:}" "$hermes" > /opt/hobcrew-box/release.env; \
     fi
 LABEL org.opencontainers.image.source="https://github.com/hobcrew-com/hobcrew-box" \
       org.opencontainers.image.licenses="FSL-1.1-ALv2"
