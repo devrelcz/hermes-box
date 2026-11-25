@@ -1,0 +1,12 @@
+name: hobcrew-secrets
+version: 1.0.0
+description: "Passwords and tokens for the Hobs' apps, given on hobcrew.com and kept encrypted on this server: variables for commands, sign-ins the browser fills in, values masked in tool output. Added by HobCrew Box."
+author: hobcrew-box
+# Bundled backends load in every profile without plugins.enabled.
+kind: backend
+provides_tools:
+  - hobcrew_secrets
+provides_hooks:
+  - pre_tool_call
+  - transform_terminal_output
+  - transform_tool_result

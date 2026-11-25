@@ -77,7 +77,7 @@ if [ ! -d instance ]; then
   die "created instance/ from instance.example/. Fill in instance/.env and run ./install.sh again (or put your existing instance repository there instead)."
 fi
 [ -f instance/.env ] || die "instance/.env is missing; see instance.example/"
-mkdir -p instance/secrets instance/tls
+mkdir -p instance/secrets/apps instance/tls
 # docker compose and the scripts read ./.env.
 if [ -e .env ] && [ ! -L .env ]; then
   die ".env is a regular file from the old layout; move it to instance/.env"

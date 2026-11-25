@@ -56,4 +56,10 @@ for name, value in json.load(sys.stdin).items():
 eval "$exports"
 unset exports
 
+# Passwords and tokens for the Hobs' apps: files in memory for the
+# hobcrew_secrets plugin, never the environment. See apps-secrets.sh.
+# A broken file costs the Hobs these secrets, not the whole agent.
+/usr/local/bin/hobcrew-apps-secrets ||
+  echo "[secrets] starting without the app secrets" >&2
+
 exec /opt/hermes/docker/entrypoint-dispatch.sh "$@"
