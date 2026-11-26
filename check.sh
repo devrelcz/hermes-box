@@ -133,6 +133,23 @@ if [ "$(env_get HOST_AUTO_UPDATES)" = "true" ] && command -v apt-get >/dev/null;
     success|exec-condition|"") ok "last update of the system did not fail" ;;
     *) fail "last update of the system: $result (journalctl -u apt-daily-upgrade)" ;;
   esac
+  # apt's script ends successfully whatever unattended-upgrade did, so a
+  # package that did not install shows only in unattended-upgrades' own log:
+  # its last run, from the last "Starting" line on. Every run writes to it,
+  # also one with nothing to do. A new server has an empty one (from the
+  # distribution's image, as old as that) until its first night.
+  uu_log=/var/log/unattended-upgrades/unattended-upgrades.log
+  if [ -s "$uu_log" ]; then
+    if awk '/Starting unattended upgrades script/ { buf = "" } { buf = buf $0 "\n" } END { printf "%s", buf }' "$uu_log" |
+       grep -qE ' (ERROR|CRITICAL) '; then
+      fail "the last nightly update of the system reported errors ($uu_log)"
+    else
+      ok "the last nightly update of the system reported no errors"
+    fi
+    if [ -n "$(find "$uu_log" -mmin +2880 2>/dev/null)" ]; then
+      fail "the system has not run its nightly update for more than two days"
+    fi
+  fi
   if [ -n "$(find "$reboot_flag" -mmin +2880 2>/dev/null)" ]; then
     fail "the system has waited for a reboot for more than two days"
   else
