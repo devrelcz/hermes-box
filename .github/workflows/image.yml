@@ -35,6 +35,7 @@ jobs:
             backup/*.sh monitor/*.sh deploy/*.sh docker/*.sh installer/*.sh
           python3 -m py_compile installer/server.py lib/hermes-batch.py
           installer/sums.sh --check
+          python3 -m unittest discover -s installer -p 'test_*.py'
 
       - name: Name and version
         id: name
