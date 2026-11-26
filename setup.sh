@@ -32,6 +32,7 @@
 #   SETUP_WEBAPP_USER=admin  SETUP_WEBAPP_PASSWORD=...
 #   SETUP_PAIR=yes|no                   show the QR code for the mobile app (terminal only)
 #   SETUP_AUTO_DEPLOY=yes|no
+#   SETUP_HOST_UPDATES=yes|no           update the system by itself at night (HOST_AUTO_UPDATES)
 #   SETUP_TRUSTED_PROXIES=203.0.113.7   a proxy in front of the Webapp (HERMES_TRUSTED_PROXIES)
 #   SETUP_TLS_CERT=<PEM> SETUP_TLS_KEY=<PEM> [SETUP_TLS_CA=<PEM>]
 #                                       a certificate of your own instead of Let's Encrypt's
@@ -295,6 +296,16 @@ if [ -d .git ] && [ -z "$(env_get AUTO_DEPLOY)" ]; then
     yes "Yes — every few minutes, from the branch checked out here" \
     no "No — update by hand"
   [ "$CHOICE" != yes ] || env_set AUTO_DEPLOY true
+fi
+
+# The system under the containers: security updates of the distribution and
+# of Docker, and the reboot a new kernel needs (docs/server.md, Updates of
+# the system). Off unless chosen: it restarts the stack and the server.
+if command -v apt-get >/dev/null && [ -z "$(env_get HOST_AUTO_UPDATES)" ]; then
+  choose SETUP_HOST_UPDATES "Keep the system updated automatically?" no \
+    yes "Yes — security updates at night, with a reboot when one is needed" \
+    no "No — I update the system myself"
+  [ "$CHOICE" != yes ] || env_set HOST_AUTO_UPDATES true
 fi
 
 # ── 1.–3. Server, image, secrets ─────────────────────────────────────────────

@@ -226,6 +226,7 @@ public part; that has to be added to the recipients of the secrets (see
 | `SOPS_AGE_KEY_FILE` | `/etc/hermes/credentials/age.key` | the server's private key |
 | `BACKUP_EXTRA_PATHS` | empty | further paths in the data directory to back up, separated by spaces |
 | `AUTO_DEPLOY` | off | `true`: the server deploys new commits by itself |
+| `HOST_AUTO_UPDATES` | off | `true`: the system updates itself at night and reboots when an update needs it ([Updates of the system](server.md#updates-of-the-system)) |
 | `HERMES_DATA_DIR` | `/home/hermes` | where all state lives |
 | `HERMES_UID`, `HERMES_GID` | `1000` | owner of the data |
 | `HOBCREW_BOX_IMAGE` | from `release.env` | an image other than the one the installation came with |

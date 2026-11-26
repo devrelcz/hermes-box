@@ -118,6 +118,30 @@ else
   fail "no successful backup recorded yet"
 fi
 
+# ── Updates of the system ────────────────────────────────────────────────────
+# Only where install.sh set them up (HOST_AUTO_UPDATES=true). A reboot that an
+# update asked for happens the same night; one still waiting after two days
+# means the nightly run does not get through.
+reboot_flag=/var/run/reboot-required
+if [ "$(env_get HOST_AUTO_UPDATES)" = "true" ] && command -v apt-get >/dev/null; then
+  check "automatic updates of the system are set up" test -f /etc/apt/apt.conf.d/52hobcrew-box-updates
+  check "apt-daily-upgrade.timer is active" systemctl is-active --quiet apt-daily-upgrade.timer
+  # exec-condition: the run was skipped because an update of HobCrew Box was
+  # in progress (server/host-updates-service.conf).
+  result="$(systemctl show apt-daily-upgrade.service -p Result --value 2>/dev/null)"
+  case "$result" in
+    success|exec-condition|"") ok "last update of the system did not fail" ;;
+    *) fail "last update of the system: $result (journalctl -u apt-daily-upgrade)" ;;
+  esac
+  if [ -n "$(find "$reboot_flag" -mmin +2880 2>/dev/null)" ]; then
+    fail "the system has waited for a reboot for more than two days"
+  else
+    ok "no reboot is overdue"
+  fi
+elif [ -f "$reboot_flag" ]; then
+  warn "the system needs a reboot to finish an update"
+fi
+
 # ── The installation's own checks ────────────────────────────────────────────
 # Every instance/check.d/*.sh is one check, named after its file: it passes
 # when the script exits 0; the last line it printed is shown with a failure.
