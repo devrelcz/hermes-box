@@ -160,8 +160,10 @@ before the morning's cron jobs. A night when `update.sh` or a deployment is
 at work is skipped. A reboot takes the Webapp and the agent down for a minute
 or two; a job running at that moment is cut off, as with any restart.
 
-`./check.sh` fails, and the monitor reports it, when the nightly run failed or
-a reboot has been waiting for more than two days. What a run did:
+`./check.sh` fails, and the monitor reports it, when the nightly run failed,
+its log (`unattended-upgrades.log`) shows an error in the last run (a package
+that did not install: apt's own service still ends successfully then), no run
+happened for two days, or a reboot has been waiting for more than two days. What a run did:
 
 ```bash
 journalctl -u apt-daily-upgrade -n 50
