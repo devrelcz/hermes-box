@@ -385,6 +385,45 @@ else
   note "automatic deployment from git: off (AUTO_DEPLOY=true in instance/.env turns it on)"
 fi
 
+# The system's own updates (docs/server.md, Updates of the system): security
+# updates of the distribution and of Docker at night, with a reboot when one
+# is needed. Only with HOST_AUTO_UPDATES=true and only where apt is; without
+# the setting the files go again and the system keeps its own schedule.
+HOST_UPDATE_FILES=(
+  /etc/apt/apt.conf.d/52hobcrew-box-updates
+  /etc/systemd/system/apt-daily-upgrade.timer.d/hobcrew-box.conf
+  /etc/systemd/system/apt-daily-upgrade.service.d/hobcrew-box.conf
+)
+host_updates_changed=0
+if [ "$(env_get HOST_AUTO_UPDATES)" = "true" ] && ! command -v apt-get >/dev/null; then
+  note "automatic updates of the system: not set up (HOST_AUTO_UPDATES=true, but this system has no apt)"
+elif [ "$(env_get HOST_AUTO_UPDATES)" = "true" ]; then
+  if ! command -v unattended-upgrade >/dev/null; then
+    DEBIAN_FRONTEND=noninteractive apt-get update -qq || true
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq unattended-upgrades >/dev/null ||
+      die "could not install unattended-upgrades (HOST_AUTO_UPDATES=true)"
+    note "installed unattended-upgrades"
+  fi
+  units_changed=0
+  install_unit server/host-updates.apt.conf     "${HOST_UPDATE_FILES[0]}"
+  install_unit server/host-updates-timer.conf   "${HOST_UPDATE_FILES[1]}"
+  install_unit server/host-updates-service.conf "${HOST_UPDATE_FILES[2]}"
+  host_updates_changed="$units_changed"
+  note "automatic updates of the system: on (nightly, with a reboot when one is needed)"
+else
+  for file in "${HOST_UPDATE_FILES[@]}"; do
+    [ -e "$file" ] || continue
+    unlink "$file"
+    rmdir "$(dirname "$file")" 2>/dev/null || true
+    note "removed $file"; host_updates_changed=1
+  done
+  note "automatic updates of the system: left to the system (HOST_AUTO_UPDATES=true in instance/.env turns them on)"
+fi
+if [ "$host_updates_changed" -eq 1 ]; then
+  systemctl daemon-reload
+  systemctl try-restart apt-daily-upgrade.timer 2>/dev/null || true
+fi
+
 # ── 7. Start ─────────────────────────────────────────────────────────────────
 # Firecrawl, which hobcrew-box ran for web search and page reading before
 # SearXNG and plugins/hobcrew_box, is not in compose.yaml any more, and the

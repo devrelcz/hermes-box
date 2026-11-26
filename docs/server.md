@@ -140,6 +140,46 @@ To be told somewhere else, add `instance/notify.sh` (see
 on this server: when the whole server is down, nothing arrives; only an
 external check of the public address covers that (UptimeRobot and the like).
 
+## Updates of the system
+
+`update.sh` updates HobCrew Box and Hermes. The system under the containers
+(Ubuntu or Debian, the kernel, Docker) is another matter, and HobCrew Box
+leaves it alone unless `instance/.env` has `HOST_AUTO_UPDATES=true` (the
+setup asks; `SETUP_HOST_UPDATES=yes` answers in advance). With it,
+`./install.sh` sets up the system's own `unattended-upgrades`:
+
+| What | How |
+| --- | --- |
+| Security updates of the distribution | as the distribution configured them, every night |
+| Docker Engine, containerd, the compose plugin | from Docker's apt repository, in the same run; the stack restarts when Docker does |
+| A new kernel, or anything else that needs a reboot | the server reboots right after the run; the stack starts again by itself |
+| Old kernels and packages nothing needs any more | removed |
+
+The run starts between 04:15 and 04:30 UTC: after the backup (02:30 UTC) and
+before the morning's cron jobs. A night when `update.sh` or a deployment is
+at work is skipped. A reboot takes the Webapp and the agent down for a minute
+or two; a job running at that moment is cut off, as with any restart.
+
+`./check.sh` fails, and the monitor reports it, when the nightly run failed or
+a reboot has been waiting for more than two days. What a run did:
+
+```bash
+journalctl -u apt-daily-upgrade -n 50
+```
+
+```bash
+tail -n 50 /var/log/unattended-upgrades/unattended-upgrades.log
+```
+
+Not updated by this: a new release of the distribution (`do-release-upgrade`),
+and packages from repositories other than the distribution's security updates
+and Docker's. Systems without apt keep their own arrangement.
+
+Removing the line from `instance/.env` and running `./install.sh` takes the
+three files away again (`/etc/apt/apt.conf.d/52hobcrew-box-updates` and the
+`hobcrew-box.conf` drop-ins of `apt-daily-upgrade.timer` and
+`apt-daily-upgrade.service`); the system then updates as it did before.
+
 ## Web and browser
 
 The agent has two ways to the web, and they are set separately in

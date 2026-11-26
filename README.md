@@ -181,6 +181,11 @@ curl -fsSL https://raw.githubusercontent.com/hobcrew-com/hobcrew-box/master/get.
 
 More in [Installation in detail](docs/installation.md#updating).
 
+That is HobCrew Box and Hermes. The system underneath (Ubuntu, the kernel,
+Docker) updates itself at night, with a reboot when one is needed, once
+`instance/.env` has `HOST_AUTO_UPDATES=true`; see
+[Updates of the system](docs/server.md#updates-of-the-system).
+
 ## Backup
 
 A backup runs daily at 03:30 and keeps 7 daily, 4 weekly and 3 monthly
