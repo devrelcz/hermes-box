@@ -281,6 +281,7 @@
       <div class="actions"><a class="go" id="open" target="_blank" rel="noopener" data-t="done.open"></a></div>
       <p class="hint"><span class="address" id="done-address"></span></p>
       <p class="note warn" id="done-slow" hidden data-t="done.slow"></p>
+      <p class="note warn" id="done-swap-warning" hidden data-t="done.swapWarning"></p>
     </section>
     <section class="panel quiet view" id="phone" hidden>
       <h3 data-t="phone.title"></h3>
@@ -358,6 +359,7 @@ const WORDS = {
     "done.signin": "Sign in as {user} with the password you chose.",
     "done.signinOld": "Sign in with the name and password you already have.",
     "done.slow": "The address may need a few more minutes before it opens.",
+    "done.swapWarning": "The installer could not add swap. If the server runs out of memory, the assistant may stop responding.",
     "phone.title": "Sign in on your phone",
     "phone.text": "Scan the QR code in the HobCrew app. Keep the code private. It contains your password.",
     "phone.get": "Get the HobCrew app",
@@ -431,6 +433,7 @@ const WORDS = {
     "done.signin": "Přihlaste se jako {user} heslem, které jste si zvolili.",
     "done.signinOld": "Přihlaste se jménem a heslem, které už máte.",
     "done.slow": "Adresa může potřebovat ještě pár minut, než se otevře.",
+    "done.swapWarning": "Instalátor nemohl přidat swap. Pokud serveru dojde paměť, asistent může přestat odpovídat.",
     "phone.title": "Přihlášení na telefonu",
     "phone.text": "Naskenujte QR kód v aplikaci HobCrew. Kód obsahuje vaše heslo. S nikým ho nesdílejte.",
     "phone.get": "Získat aplikaci HobCrew",
@@ -674,7 +677,9 @@ function renderDone() {
   $("done-address").textContent = summary.url;
   $("done-signin").textContent = state.answers.user ? t("done.signin", { user: state.answers.user }) : t("done.signinOld");
   const setup = state.steps[state.steps.length - 1];
-  show("done-slow", setup.substeps.some((sub) => sub.status === "failed"));
+  const swapStep = "Preparing swap for the server";
+  show("done-slow", setup.substeps.some((sub) => sub.status === "failed" && sub.title !== swapStep));
+  show("done-swap-warning", setup.substeps.some((sub) => sub.status === "failed" && sub.title === swapStep));
   $("phone-toggle").textContent = t("phone.show");
   $("admin-key").textContent = summary.key_file;
   $("admin-instance").textContent = summary.instance + "/";

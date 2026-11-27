@@ -19,6 +19,9 @@ backups included.
 - A domain that points at the server, with ports 80 and 443 open.
 - 4 GB of RAM (with swap) and 40 GB of disk.
 
+Setup adds 2 GiB of swap if the server has none and there is enough free disk
+space. Swap helps with memory spikes. Plan for at least 4 GB of RAM.
+
 No domain yet? Use `<address>.sslip.io` as the host name, for example
 `203.0.113.7.sslip.io`. It resolves to that address and gets a certificate
 like any other name.

@@ -187,7 +187,7 @@ WEB_UNIT=hobcrew-box-installer
 WEB_SUMS="
 b578897c18c8bdca453971884a82e5038dba4fc10130cf49571f0146b88b0210  server.py
 22771746c1f76414322be1dded6f38c7cd3d2bad631776e3e2d5d8073447baa1  steps.sh
-cb7df8efde4f75d70d9bb1c401d926eae1dbd35f671a228e99caf7476b4b2ef5  index.html
+b4713566d134778508ff4aee333720f048a0561ca29cad10e7190f481fc70919  index.html
 "
 # installer-sums: end
 
@@ -325,6 +325,7 @@ web_installer() {  # <image> <installation directory>
 
   # A unit of its own: the installation goes on when this SSH session ends.
   [ -z "${SETUP_DATA_DIR:-}" ] || pass+=("--setenv=SETUP_DATA_DIR=$SETUP_DATA_DIR")
+  [ -z "${SETUP_SWAP:-}" ] || pass+=("--setenv=SETUP_SWAP=$SETUP_SWAP")
   systemctl reset-failed "$WEB_UNIT" 2>/dev/null || true
   systemd-run --quiet --unit="$WEB_UNIT" --collect --description="HobCrew Box installer" \
     --setenv=INSTALL_IMAGE="$1" --setenv=INSTALL_DIR="$2" ${pass[@]+"${pass[@]}"} \
