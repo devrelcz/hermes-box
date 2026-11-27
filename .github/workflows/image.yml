@@ -31,7 +31,7 @@ jobs:
       - name: Check the scripts
         run: |
           shellcheck --severity=error \
-            get.sh install.sh setup.sh pair.sh check.sh sops.sh update.sh lib/ui.sh lib/hermes.sh lib/deploy.sh \
+            get.sh install.sh setup.sh pair.sh check.sh sops.sh update.sh lib/ui.sh lib/hermes.sh lib/deploy.sh lib/swap.sh \
             backup/*.sh monitor/*.sh deploy/*.sh docker/*.sh installer/*.sh
           python3 -m py_compile installer/server.py lib/hermes-batch.py
           installer/sums.sh --check
@@ -81,7 +81,7 @@ jobs:
           # What an installation gets out of it.
           out="$(mktemp -d)"
           docker run --rm --network none -v "$out:/out" --entrypoint hobcrew-box-extract "$IMAGE:$VERSION"
-          for file in compose.yaml install.sh setup.sh pair.sh check.sh sops.sh update.sh lib/ui.sh lib/deploy.sh release.env \
+          for file in compose.yaml install.sh setup.sh pair.sh check.sh sops.sh update.sh lib/ui.sh lib/deploy.sh lib/swap.sh release.env \
                       backup/hermes-backup.sh monitor/hermes-monitor.sh server/hermes-docker.service \
                       caddy/Caddyfile searxng/settings.yml plugins/hobcrew_box/provider.py \
                       instance.example/env.example docs/installation.md; do

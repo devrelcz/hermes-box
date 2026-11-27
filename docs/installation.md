@@ -15,6 +15,12 @@ SearXNG, for web search, about 120 MB; a browser the agent opens, and a bot's
 screen, take much more. 4 GB of RAM is a sensible minimum, and with that
 little the server needs swap.
 
+During setup HobCrew Box creates and enables a 2 GiB swap file at
+`/hobcrew-box.swap` if the server has no active or configured swap. It keeps
+at least 2 GiB of free space on the system disk and records the swap file in
+`/etc/fstab` so it starts again after a reboot. If swap cannot be enabled,
+setup continues with a warning. Set `SETUP_SWAP=skip` to manage swap yourself.
+
 To try it out without a domain of your own, use `<address>.sslip.io` as the
 host name, for example `203.0.113.7.sslip.io`: it resolves to that address and
 gets a certificate like any other name.

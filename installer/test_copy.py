@@ -15,10 +15,15 @@ class InstallerCopyTest(unittest.TestCase):
         directory = Path(self.enterContext(tempfile.TemporaryDirectory()))
         self.model_request = directory / "model-request"
         self.model_failure = directory / "model-failure"
+        self.swap_failure = directory / "swap-failure"
         steps = directory / "steps.sh"
         steps.write_text(
             'case "$1" in\n'
             '  needs) printf "%s\\n" "existing 1" ;;\n'
+            '  setup)\n'
+            '    if [ -e "${0%/*}/swap-failure" ]; then\n'
+            '      printf "%s\\n" "@@step start|Preparing swap for the server" "@@step end|1|Preparing swap for the server"\n'
+            '    fi ;;\n'
             '  summary) printf "%s\\n" "url=https://assistant.example.com" "model=no" ;;\n'
             '  model)\n'
             '    if [ -e "${0%/*}/model-failure" ]; then cat >&2; exit 1; fi\n'
@@ -70,6 +75,14 @@ class InstallerCopyTest(unittest.TestCase):
         self.assertEqual(state["missing"], [])
         state = self.finish_installation()
         self.assertEqual(state["summary"]["url"], "https://assistant.example.com")
+
+    def test_swap_failure_is_reported_without_stopping_installation(self):
+        self.swap_failure.touch()
+        state = self.finish_installation()
+        swap, = state["steps"][-1]["substeps"]
+        self.assertEqual(swap["title"], "Preparing swap for the server")
+        self.assertEqual(swap["status"], "failed")
+        self.assertIn('id="done-swap-warning"', self.request("GET", "/")[1])
 
     def finish_installation(self):
         self.assertEqual(self.request("POST", "/api/start", signed_in=True)[0], 202)

@@ -31,6 +31,7 @@
 #   SETUP_WEBAPP_LOGIN=skip             leave the Webapp sign-in for later
 #   SETUP_WEBAPP_USER=admin  SETUP_WEBAPP_PASSWORD=...
 #   SETUP_PAIR=yes|no                   show the QR code for the mobile app (terminal only)
+#   SETUP_SWAP=auto|skip                create swap if the server has none (default: auto)
 #   SETUP_AUTO_DEPLOY=yes|no
 #   SETUP_HOST_UPDATES=yes|no           update the system by itself at night (HOST_AUTO_UPDATES)
 #   SETUP_TRUSTED_PROXIES=203.0.113.7   a proxy in front of the Webapp (HERMES_TRUSTED_PROXIES)
@@ -47,7 +48,7 @@ for arg in "$@"; do
   case "$arg" in
     --no-start) start=0 ;;
     -v|--verbose) export HOBCREW_BOX_VERBOSE=1 ;;
-    -h|--help) sed -n '2,37p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,38p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "unknown option: $arg" >&2; exit 2 ;;
   esac
 done
@@ -313,6 +314,14 @@ if [ "$existing" -eq 0 ]; then
   say "Setting up — this takes a while, mostly the download"
 else
   say "Checking the installation"
+fi
+if [ "${SETUP_SWAP:-auto}" != skip ]; then
+  # shellcheck source=lib/swap.sh
+  . "$REPO_DIR/lib/swap.sh"
+  step_try "Preparing swap for the server" ensure_swap /hobcrew-box.swap /etc/fstab /proc/swaps
+  if [ "$STEP_STATUS" -ne 0 ]; then
+    warn "Could not set up swap. If the server runs out of memory, the assistant may stop."
+  fi
 fi
 step "Downloading the images and preparing the server" ./install.sh --prepare
 IMAGE="$(image_ref)"
