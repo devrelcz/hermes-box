@@ -139,6 +139,7 @@ API; the page is one client of it. It exists only for the installation:
 | `POST /api/answers` | `{"domain": ..., "user": ..., "password": ...}`, any subset |
 | `GET /api/domain?name=...` | where a host name points, and whether that is this server |
 | `POST /api/retry` | runs a failed step again |
+| `POST /api/model` | after installation, save `provider`, `model` and `api_key` on this server and restart Hermes |
 | `GET /api/pair` | the mobile app's QR code, as rows of 0 and 1 |
 | `POST /api/finish` | stops the installer |
 
@@ -164,10 +165,11 @@ curl --cacert hobcrew-box.crt -H "Authorization: Bearer $TOKEN" -X POST https://
 curl --cacert hobcrew-box.crt -H "Authorization: Bearer $TOKEN" https://203.0.113.7:8443/api/state
 ```
 
-The model is not part of the installation: it is chosen afterwards, in the
-Webapp or with Hermes' own wizard (README, Model and provider).
+After installation, the page can save an OpenAI, Anthropic or OpenRouter key
+using Hermes' local credential storage and set the default model. For other
+providers, use [Hermes' model wizard](../README.md#model-and-provider).
 
-The page asks for the user name and the password only. Where the server has
+The page starts by asking for a user name and password. Where the server has
 a public address, it sends `<address>.sslip.io` as the domain unless a domain
 of your own is filled in; behind NAT it asks for the domain as well. It shows
 the progress as one bar and keeps the log for the case that a step fails.

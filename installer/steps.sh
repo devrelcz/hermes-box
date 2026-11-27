@@ -12,6 +12,7 @@
 #   steps.sh needs      which answers this server still needs
 #   steps.sh summary    where the finished installation is
 #   steps.sh pair       the mobile app's QR code for the JSON on stdin, as rows of 0 and 1
+#   steps.sh model      configure the provider, model and key supplied as JSON on stdin
 #
 # Settings, through the environment, as for get.sh: INSTALL_IMAGE, INSTALL_DIR,
 # SETUP_DATA_DIR.
@@ -143,6 +144,31 @@ summary() {
   if grep -Eqs '^model:' "$config"; then echo "model=yes"; else echo "model=no"; fi
 }
 
+step_model() {
+  local uid gid
+  uid="$(env_get HERMES_UID)"
+  gid="$(env_get HERMES_GID)"
+  docker exec -i -u "${uid:-1000}:${gid:-1000}" -e HOME=/opt/data -e HERMES_HOME=/opt/data \
+    -w /opt/hermes hermes /opt/hermes/.venv/bin/python -c '
+import json
+import sys
+from hermes_cli.config import read_raw_config, save_config, save_env_value_secure
+
+answers = json.load(sys.stdin)
+provider = answers["provider"]
+key_name = {
+    "openai": "OPENAI_API_KEY",
+    "anthropic": "ANTHROPIC_API_KEY",
+    "openrouter": "OPENROUTER_API_KEY",
+}[provider]
+save_env_value_secure(key_name, answers["api_key"])
+config = dict(read_raw_config())
+config["model"] = {"provider": provider, "default": answers["model"]}
+save_config(config)
+' >/dev/null 2>&1 || die "could not save the provider and model in Hermes"
+  docker restart --timeout 15 hermes >/dev/null
+}
+
 # The QR library is the one Hermes ships in its image.
 pair() {
   docker run --rm -i --network none --entrypoint /opt/hermes/.venv/bin/python "$(image_ref)" -c '
@@ -163,5 +189,6 @@ case "${1:-}" in
   needs)    needs ;;
   summary)  summary ;;
   pair)     pair ;;
+  model)    step_model ;;
   *) sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
 esac

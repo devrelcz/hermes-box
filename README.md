@@ -44,8 +44,10 @@ own can be filled in instead, under "I want my own domain".
 Then one bar shows how far the installation is: Docker when it is missing,
 the download of the image (several GB), the setup, the first backup and a
 check. You can close the page and open it again; the installation goes on.
-At the end the page has a button that opens the Webapp and a QR code for
-the mobile app. The model is chosen in the Webapp afterwards.
+At the end of the installation you can connect a model using your own OpenAI,
+Anthropic or OpenRouter API key. Choose a provider and enter its model ID and
+API key. The key is saved on your server and the assistant restarts. The page
+also opens the Webapp and shows the QR code for the mobile app.
 
 About the installer's address:
 
