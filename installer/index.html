@@ -20,14 +20,14 @@
   :root {
     --bg: #f2f5f1; --panel: #ffffff; --ink: #0e1511; --soft: #56615a; --line: #dbe2dc;
     --accent: #3ddc97; --accent-ink: #08130d; --accent-text: #0a7a50; --accent-wash: #e3f8ee;
-    --bad: #b3261e; --warn: #8a5a00; --field: #f7f9f6; --code: #eef2ee;
+    --bad: #b3261e; --warn: #8a5a00; --field: #f7f9f6; --field-line: #74827a; --code: #eef2ee;
     --shadow: 0 24px 60px -32px rgb(14 60 40 / 0.35);
   }
   @media (prefers-color-scheme: dark) {
     :root {
       --bg: #0b100d; --panel: #131a16; --ink: #ecf1ed; --soft: #9aa69f; --line: #26302a;
       --accent: #3ddc97; --accent-ink: #08130d; --accent-text: #5fe3aa; --accent-wash: #13291f;
-      --bad: #ff8a80; --warn: #e6b450; --field: #0f1512; --code: #0f1512;
+      --bad: #ff8a80; --warn: #e6b450; --field: #0f1512; --field-line: #64776d; --code: #0f1512;
       --shadow: 0 24px 60px -32px rgb(0 0 0 / 0.7);
     }
   }
@@ -77,15 +77,32 @@
   #ready-block { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
   #ready-block .hint { margin-top: 0; }
   #ready-block details { margin-top: 10px; }
-  .address { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 14px; color: var(--ink); }
+  .address { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 14px; color: var(--ink); overflow-wrap: anywhere; }
+
+  #model-settings { padding-bottom: 22px; margin: 18px 0 22px; border-bottom: 1px solid var(--line); }
+  #model-settings summary { color: var(--ink); font-size: 17px; padding-block: 9px; }
+  .model-fields { display: grid; gap: 16px; margin-top: 16px; }
+  .model-fields > div { min-width: 0; }
+  .model-fields label.name { margin-top: 0; }
+  @media (min-width: 600px) {
+    .model-fields { grid-template-columns: 1fr 1fr; }
+    .model-key-field { grid-column: 1 / -1; }
+  }
+  #form-model .actions { margin-top: 18px; }
+  #admin { margin-top: 0; }
+  .off-note { margin-top: 18px; }
+  .off-actions { margin-top: 14px; }
 
   label.name { display: block; font-weight: 650; margin: 22px 0 6px; }
   .input-row { position: relative; }
-  input[type=text], input[type=password] {
+  input[type=text], input[type=password], select {
     width: 100%; padding: 13px 14px; font: inherit; color: var(--ink);
     background: var(--field); border: 1.5px solid var(--line); border-radius: 12px;
   }
-  input[type=text]:focus, input[type=password]:focus { outline: none; border-color: var(--accent-text); }
+  input[type=text]:focus, input[type=password]:focus, select:focus { outline: none; border-color: var(--accent-text); }
+  .model-fields :is(input[type=text], input[type=password], select) { border-color: var(--field-line); }
+  #form-model :is(input, select):focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; }
+  .model-fields input[aria-invalid=true] { border-color: var(--bad); }
   .input-row input { padding-right: 96px; }
   .peek { position: absolute; right: 6px; top: 6px; bottom: 6px; padding: 0 14px; border-radius: 8px; border: 0; background: transparent; color: var(--accent-text); font: inherit; font-size: 15px; font-weight: 650; cursor: pointer; }
   .hint { font-size: 15px; color: var(--soft); margin-top: 8px; }
@@ -103,7 +120,8 @@
   button.go:hover, a.go:hover { filter: brightness(1.06); }
   button.go:active, a.go:active { transform: scale(0.98); }
   button.go:disabled { opacity: 0.5; cursor: default; }
-  button.plain { font: inherit; font-weight: 650; padding: 13px 18px; border-radius: 999px; border: 1.5px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; white-space: nowrap; }
+  button.plain, a.plain { font: inherit; font-weight: 650; padding: 13px 18px; border-radius: 999px; border: 1.5px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; white-space: nowrap; }
+  a.plain { display: inline-block; text-decoration: none; }
   button.plain:disabled { opacity: 0.5; cursor: default; }
   :focus-visible { outline: 2px solid var(--accent-text); outline-offset: 3px; }
 
@@ -220,11 +238,41 @@
 
     <!-- Done -->
     <section class="panel view" id="done" hidden>
+      <details id="model-settings">
+        <summary id="model-title"></summary>
+        <form id="form-model">
+          <div class="model-fields">
+            <div>
+              <label class="name" for="model-provider" data-t="model.provider"></label>
+              <select id="model-provider" required>
+                <option value="" data-t="model.choose"></option>
+                <option value="openai">OpenAI</option>
+                <option value="anthropic">Anthropic</option>
+                <option value="openrouter">OpenRouter</option>
+              </select>
+            </div>
+            <div>
+              <label class="name" for="model-id" data-t="model.id"></label>
+              <input type="text" id="model-id" required maxlength="200" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="model-id-hint model-id-error">
+              <p class="hint" id="model-id-hint" data-t="model.idHint"></p>
+              <p class="note bad" id="model-id-error" data-t="model.badId" hidden></p>
+            </div>
+            <div class="model-key-field">
+              <label class="name" for="model-key" data-t="model.key"></label>
+              <input type="password" id="model-key" maxlength="512" required autocomplete="off" aria-describedby="model-key-hint model-key-error">
+              <p class="hint" id="model-key-hint" data-t="model.keyHint"></p>
+              <p class="note bad" id="model-key-error" data-t="model.badKey" hidden></p>
+            </div>
+          </div>
+          <p class="hint" data-t="model.restart"></p>
+          <div class="actions"><button class="go" type="submit" id="model-save" data-t="model.save"></button></div>
+          <p class="note" id="model-feedback" role="status"></p>
+        </form>
+      </details>
       <h2 data-t="done.title"></h2>
       <p class="soft" id="done-signin"></p>
       <div class="actions"><a class="go" id="open" target="_blank" rel="noopener" data-t="done.open"></a></div>
       <p class="hint"><span class="address" id="done-address"></span></p>
-      <p class="hint" id="done-model" hidden data-t="done.model"></p>
       <p class="note warn" id="done-slow" hidden data-t="done.slow"></p>
     </section>
     <section class="panel quiet view" id="phone" hidden>
@@ -237,14 +285,14 @@
       <div class="actions"><button class="plain" id="phone-toggle"></button></div>
     </section>
     <section class="panel quiet view" id="after" hidden>
-      <details id="admin" style="margin-top:0">
+      <details id="admin">
         <summary data-t="admin.title"></summary>
         <p class="soft small" data-t="admin.text"></p>
         <p class="small"><code class="inline" id="admin-key"></code></p>
         <p class="small"><code class="inline" id="admin-instance"></code></p>
       </details>
-      <p class="soft small" style="margin-top:18px" data-t="off.text"></p>
-      <div class="actions" style="margin-top:14px"><button class="plain" id="off" data-t="off.go"></button></div>
+      <p class="soft small off-note" data-t="off.text"></p>
+      <div class="actions off-actions"><button class="plain" id="off" data-t="off.go"></button></div>
     </section>
   </main>
 </div>
@@ -265,8 +313,9 @@ const WORDS = {
     "lead.run": "It usually takes 10 to 15 minutes. You can close this page, the installation keeps going.",
     "head.fail": "The installation stopped.",
     "lead.fail": "Nothing is lost. Trying again continues where it stopped.",
-    "head.done": "Your assistant is ready.",
-    "lead.done": "Open it in the browser and sign in.",
+    "head.done": "HobCrew Box is installed.",
+    "lead.done": "Open the web interface to chat with your assistant.",
+    "lead.doneModel": "Connect a model so your assistant can reply.",
     "head.off": "The installer is switched off.",
     "lead.off": "You can close this page.",
     "rail.domain": "Address", "rail.login": "Sign-in", "rail.install": "Installation",
@@ -298,16 +347,30 @@ const WORDS = {
     "fail.title": "Something went wrong", "fail.text": "Trying again usually helps. If it does not, send the technical details below to whoever looks after your server.",
     "now.prepare": "Getting the server ready", "now.download": "Downloading your assistant, this takes the longest", "now.start": "Setting it up and starting it",
     "retry": "Try again", "details": "Technical details",
-    "done.title": "Open your assistant", "done.open": "Open the web interface",
+    "done.title": "Use HobCrew Box in your browser", "done.open": "Open the web interface",
     "done.signin": "Sign in as {user} with the password you chose.",
     "done.signinOld": "Sign in with the name and password you already have.",
     "done.slow": "The address may need a few more minutes before it opens.",
-    "phone.title": "Connect your phone",
-    "phone.text": "Scan the code in the HobCrew app and you are signed in. The code contains your password, so do not take a screenshot of it.",
+    "phone.title": "Sign in on your phone",
+    "phone.text": "Scan the QR code in the HobCrew app. Keep the code private. It contains your password.",
     "phone.get": "Get the HobCrew app",
-    "phone.show": "Show the code", "phone.hide": "Hide the code",
-    "phone.left": "The code can be shown for {n} more min. Later, whoever looks after the server can make a new one.",
-    "done.model": "After you sign in, choose the AI model in the assistant's settings. It starts answering once that is done.",
+    "phone.show": "Show QR code", "phone.hide": "Hide QR code",
+    "phone.left": "The QR code is available for {n} more min.",
+    "model.title": "Connect a model with your own API key",
+    "model.change": "Change model or API key",
+    "model.provider": "Provider",
+    "model.choose": "Choose a provider",
+    "model.id": "Model ID",
+    "model.idHint": "Copy the exact ID from your provider.",
+    "model.key": "API key",
+    "model.keyHint": "HobCrew Box stores this key on your server.",
+    "model.restart": "Saving briefly restarts your assistant.",
+    "model.save": "Save model",
+    "model.saving": "Saving…",
+    "model.saved": "Settings saved. Once the assistant restarts, send a test message.",
+    "model.badId": "Enter the model ID as shown by your provider, without spaces.",
+    "model.badKey": "Paste the API key from your provider on one line, without spaces.",
+    "model.error": "The installer could not finish saving the model. Try again.",
     "admin.title": "For whoever looks after the server",
     "admin.text": "Keep a copy of these two things outside the server. Without the first one the backups cannot be read; the second one holds this installation's settings.",
     "off.text": "The installer switches itself off 15 minutes after the installation.", "off.go": "Switch it off now",
@@ -323,8 +386,9 @@ const WORDS = {
     "lead.run": "Obvykle to trvá 10 až 15 minut. Stránku můžete zavřít, instalace poběží dál.",
     "head.fail": "Instalace se zastavila.",
     "lead.fail": "O nic jste nepřišli. Další pokus naváže tam, kde to skončilo.",
-    "head.done": "Váš asistent je připravený.",
-    "lead.done": "Otevřete ho v prohlížeči a přihlaste se.",
+    "head.done": "HobCrew Box je nainstalovaný.",
+    "lead.done": "Otevřete webové rozhraní a napište svému asistentovi.",
+    "lead.doneModel": "Připojte model, aby vám asistent mohl odpovídat.",
     "head.off": "Instalátor je vypnutý.",
     "lead.off": "Tuhle stránku můžete zavřít.",
     "rail.domain": "Adresa", "rail.login": "Přihlášení", "rail.install": "Instalace",
@@ -356,16 +420,30 @@ const WORDS = {
     "fail.title": "Něco se nepovedlo", "fail.text": "Většinou pomůže zkusit to znovu. Když ne, pošlete technické podrobnosti níže tomu, kdo se vám stará o server.",
     "now.prepare": "Připravujeme server", "now.download": "Stahujeme asistenta, tohle trvá nejdéle", "now.start": "Nastavujeme a spouštíme",
     "retry": "Zkusit znovu", "details": "Technické podrobnosti",
-    "done.title": "Otevřete svého asistenta", "done.open": "Otevřít webové rozhraní",
+    "done.title": "HobCrew Box v prohlížeči", "done.open": "Otevřít webové rozhraní",
     "done.signin": "Přihlaste se jako {user} heslem, které jste si zvolili.",
     "done.signinOld": "Přihlaste se jménem a heslem, které už máte.",
     "done.slow": "Adresa může potřebovat ještě pár minut, než se otevře.",
-    "phone.title": "Připojte telefon",
-    "phone.text": "Naskenujte kód v aplikaci HobCrew a jste přihlášeni. Kód obsahuje vaše heslo, proto si ho nefoťte.",
+    "phone.title": "Přihlášení na telefonu",
+    "phone.text": "Naskenujte QR kód v aplikaci HobCrew. Kód obsahuje vaše heslo. S nikým ho nesdílejte.",
     "phone.get": "Získat aplikaci HobCrew",
-    "phone.show": "Zobrazit kód", "phone.hide": "Skrýt kód",
-    "phone.left": "Kód jde zobrazit ještě {n} min. Později vám nový vytvoří ten, kdo se stará o server.",
-    "done.model": "Po přihlášení si v nastavení asistenta vyberte AI model. Jakmile to uděláte, začne odpovídat.",
+    "phone.show": "Zobrazit QR kód", "phone.hide": "Skrýt QR kód",
+    "phone.left": "QR kód lze zobrazit ještě {n} min.",
+    "model.title": "Připojit model vlastním API klíčem",
+    "model.change": "Změnit model nebo API klíč",
+    "model.provider": "Poskytovatel",
+    "model.choose": "Vyberte poskytovatele",
+    "model.id": "ID modelu",
+    "model.idHint": "Zkopírujte přesné ID od poskytovatele.",
+    "model.key": "API klíč",
+    "model.keyHint": "HobCrew Box uloží klíč na vašem serveru.",
+    "model.restart": "Při uložení se asistent krátce restartuje.",
+    "model.save": "Uložit model",
+    "model.saving": "Ukládám…",
+    "model.saved": "Nastavení je uložené. Po restartu asistenta zkuste poslat zprávu.",
+    "model.badId": "Zadejte ID modelu od poskytovatele bez mezer.",
+    "model.badKey": "Vložte API klíč od poskytovatele na jeden řádek bez mezer.",
+    "model.error": "Instalátor nedokončil uložení modelu. Zkuste to znovu.",
     "admin.title": "Pro toho, kdo se stará o server",
     "admin.text": "Tyhle dvě věci si uložte i mimo server. Bez první se nedají přečíst zálohy, ve druhé je nastavení téhle instalace.",
     "off.text": "Instalátor se 15 minut po instalaci sám vypne.", "off.go": "Vypnout hned",
@@ -567,7 +645,10 @@ function renderQuestion() {
 }
 
 function renderDone() {
+  const summary = state.summary;
+  const modelReady = summary.model === "yes";
   head("done");
+  if (!modelReady) $("lead").textContent = t("lead.doneModel");
   show("rail", false);
   // The code for the phone can be shown only for a while after the installation.
   const fresh = screen("done", ["done", "after"]);
@@ -577,15 +658,17 @@ function renderDone() {
   } else if (!$("qr").hidden) {
     hideCode();
   }
+  $("model-title").textContent = t(modelReady ? "model.change" : "model.title");
+  $("model-save").className = modelReady ? "plain" : "go";
+  $("open").className = modelReady ? "go" : "plain";
   if (!fresh) return;
-  const summary = state.summary;
+  $("model-settings").open = !modelReady;
   $("open").href = summary.url;
   $("done-address").textContent = summary.url;
   $("done-signin").textContent = state.answers.user ? t("done.signin", { user: state.answers.user }) : t("done.signinOld");
   const setup = state.steps[state.steps.length - 1];
   show("done-slow", setup.substeps.some((sub) => sub.status === "failed"));
   $("phone-toggle").textContent = t("phone.show");
-  show("done-model", summary.model !== "yes");
   $("admin-key").textContent = summary.key_file;
   $("admin-instance").textContent = summary.instance + "/";
   show("admin", state.install.existing !== "1");
@@ -773,6 +856,59 @@ $("retry").addEventListener("click", async () => {
 });
 
 // ── After the installation ───────────────────────────────────────────────────
+function modelNotice(message, kind = "") {
+  const feedback = $("model-feedback");
+  if (message) feedback.dataset.t = message;
+  else delete feedback.dataset.t;
+  feedback.textContent = message ? t(message) : "";
+  feedback.className = kind ? "note " + kind : "note";
+}
+
+$("form-model").addEventListener("input", () => {
+  if (!$("model-save").disabled) modelNotice("");
+});
+for (const id of ["model-id", "model-key"]) {
+  $(id).addEventListener("input", () => {
+    $(id).removeAttribute("aria-invalid");
+    show(id + "-error", false);
+  });
+}
+
+$("form-model").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const save = $("model-save");
+  if (save.disabled) return;
+  const key = $("model-key");
+  const body = {
+    provider: $("model-provider").value,
+    model: $("model-id").value.trim(),
+    api_key: key.value.trim(),
+  };
+  const invalid = !/^[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,199}$/.test(body.model) ? "model-id"
+    : !/^[!-~]{1,512}$/.test(body.api_key) ? "model-key" : "";
+  if (invalid) {
+    show(invalid + "-error", true);
+    $(invalid).setAttribute("aria-invalid", "true");
+    $(invalid).focus();
+    return;
+  }
+  save.disabled = true;
+  $("off").disabled = true;
+  modelNotice("model.saving");
+  try {
+    await api("POST", "/api/model", body);
+    key.value = "";
+    state.summary.model = "yes";
+    renderDone();
+    modelNotice("model.saved", "ok");
+  } catch (error) {
+    modelNotice("model.error", "bad");
+  } finally {
+    save.disabled = false;
+    $("off").disabled = false;
+  }
+});
+
 function hideCode() {
   const canvas = $("qr");
   canvas.width = canvas.height = 1;
@@ -807,10 +943,11 @@ $("off").addEventListener("click", async () => {
   $("off").disabled = true;
   try { await api("POST", "/api/finish", {}); } catch (error) { $("off").disabled = false; return; }
   off = true;
+  $("model-key").value = "";
   hideCode();
   try { sessionStorage.removeItem("token"); } catch (error) { /* private mode */ }
   head("off");
-  for (const id of ["phone", "after", "problem"]) show(id, false);
+  for (const id of ["model-settings", "phone", "after", "problem"]) show(id, false);
 });
 
 for (const button of document.querySelectorAll("[data-lang]")) {

@@ -57,6 +57,9 @@ STEPS = [
 ]
 DOMAIN_RE = re.compile(r"^(?=.{4,253}$)[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$")
 USER_RE = re.compile(r"^[A-Za-z0-9._@-]{1,64}$")
+MODEL_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/@+\-]{0,199}")
+API_KEY_RE = re.compile(r"[!-~]{1,512}")
+MODEL_PROVIDERS = {"openai", "anthropic", "openrouter"}
 ANSI_RE = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
 EVENT = "@@step "
 LOG_KEEP = 5000
@@ -91,6 +94,7 @@ class Installer:
         self.lifetime = lifetime
         self.pair_window = pair_window
         self.cond = threading.Condition()
+        self.model_lock = threading.Lock()
         self.phase = "idle"
         self.error = None
         self.steps = [
@@ -239,13 +243,14 @@ class Installer:
             stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
             env=env, text=True, errors="replace",
         )
-        for line in process.stdout:
-            line = ANSI_RE.sub("", line.rstrip("\n")).split("\r")[-1]
-            with self.cond:
-                if line.startswith(EVENT):
-                    self._event(step, line[len(EVENT):])
-                elif line.strip():
-                    self._log(line)
+        with process.stdout:
+            for line in process.stdout:
+                line = ANSI_RE.sub("", line.rstrip("\n")).split("\r")[-1]
+                with self.cond:
+                    if line.startswith(EVENT):
+                        self._event(step, line[len(EVENT):])
+                    elif line.strip():
+                        self._log(line)
         status = process.wait()
         with self.cond:
             for sub in step["substeps"]:
@@ -341,6 +346,32 @@ class Installer:
         if not rows:
             raise RuntimeError("could not draw the code")
         return {"rows": rows}
+
+    def configure_model(self, body):
+        if not isinstance(body, dict):
+            raise BadRequest("a JSON object is expected")
+        provider, model, key = (body.get(field) for field in ("provider", "model", "api_key"))
+        if not isinstance(provider, str) or provider not in MODEL_PROVIDERS:
+            raise BadRequest("choose OpenAI, Anthropic or OpenRouter")
+        if not isinstance(model, str) or not MODEL_RE.fullmatch(model):
+            raise BadRequest("enter the model ID from your provider")
+        if not isinstance(key, str) or not API_KEY_RE.fullmatch(key):
+            raise BadRequest("enter your provider's API key without spaces")
+        if not self.model_lock.acquire(blocking=False):
+            raise BadRequest("the model is already being saved")
+        try:
+            with self.cond:
+                if self.phase != "done":
+                    raise BadRequest("finish the server installation first")
+            try:
+                self._script("model", stdin=json.dumps({"provider": provider, "model": model, "api_key": key}))
+            except (RuntimeError, subprocess.TimeoutExpired):
+                raise RuntimeError("could not save the model and restart Hermes") from None
+            with self.cond:
+                self.summary["model"] = "yes"
+            return {"ok": True}
+        finally:
+            self.model_lock.release()
 
 
 class BoundedServer(ThreadingHTTPServer):
@@ -478,9 +509,11 @@ def make_handler(installer, token, page, cleanup):
                 self.body()
                 installer.retry()
                 return self.send(202, installer.state(0))
+            if route == ("POST", "/api/model"):
+                return self.send(200, installer.configure_model(self.body()))
             if route == ("POST", "/api/finish"):
                 self.body()
-                if installer.phase == "running":
+                if installer.phase == "running" or installer.model_lock.locked():
                     raise BadRequest("the installation is running; stopping the installer now would break it off")
                 self.send(200, {"ok": True})
                 threading.Timer(0.5, cleanup).start()
@@ -545,6 +578,8 @@ def main():
             time.sleep(5)
             now = time.time()
             installer.forget_password()
+            if installer.model_lock.locked():
+                continue
             if installer.finished and now - installer.finished > args.linger:
                 cleanup()
             # A step that is running is allowed to end; nothing new is accepted for long after.
