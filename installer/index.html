@@ -89,6 +89,13 @@
     .model-key-field { grid-column: 1 / -1; }
   }
   #form-model .actions { margin-top: 18px; }
+  #model-feedback:empty { margin: 0; }
+  #model-feedback.ok {
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: var(--accent-wash);
+    color: var(--ink);
+  }
   #admin { margin-top: 0; }
   .off-note { margin-top: 18px; }
   .off-actions { margin-top: 14px; }
@@ -364,10 +371,10 @@ const WORDS = {
     "model.idHint": "Copy the exact ID from your provider.",
     "model.key": "API key",
     "model.keyHint": "HobCrew Box stores this key on your server.",
-    "model.restart": "Saving briefly restarts your assistant.",
+    "model.restart": "HobCrew Box restarts the assistant automatically after saving.",
     "model.save": "Save model",
-    "model.saving": "Saving…",
-    "model.saved": "Settings saved. Once the assistant restarts, send a test message.",
+    "model.saving": "Saving the model and restarting the assistant…",
+    "model.saved": "Model settings saved. HobCrew Box restarted the assistant automatically. When the web interface loads, send a test message.",
     "model.badId": "Enter the model ID as shown by your provider, without spaces.",
     "model.badKey": "Paste the API key from your provider on one line, without spaces.",
     "model.error": "The installer could not finish saving the model. Try again.",
@@ -437,10 +444,10 @@ const WORDS = {
     "model.idHint": "Zkopírujte přesné ID od poskytovatele.",
     "model.key": "API klíč",
     "model.keyHint": "HobCrew Box uloží klíč na vašem serveru.",
-    "model.restart": "Při uložení se asistent krátce restartuje.",
+    "model.restart": "Po uložení HobCrew Box asistenta automaticky restartuje.",
     "model.save": "Uložit model",
-    "model.saving": "Ukládám…",
-    "model.saved": "Nastavení je uložené. Po restartu asistenta zkuste poslat zprávu.",
+    "model.saving": "Ukládáme model a restartujeme asistenta…",
+    "model.saved": "Nastavení modelu je uložené. HobCrew Box asistenta automaticky restartoval. Až se načte webové rozhraní, zkuste poslat zprávu.",
     "model.badId": "Zadejte ID modelu od poskytovatele bez mezer.",
     "model.badKey": "Vložte API klíč od poskytovatele na jeden řádek bez mezer.",
     "model.error": "Instalátor nedokončil uložení modelu. Zkuste to znovu.",

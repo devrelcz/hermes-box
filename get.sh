@@ -187,7 +187,7 @@ WEB_UNIT=hobcrew-box-installer
 WEB_SUMS="
 b578897c18c8bdca453971884a82e5038dba4fc10130cf49571f0146b88b0210  server.py
 22771746c1f76414322be1dded6f38c7cd3d2bad631776e3e2d5d8073447baa1  steps.sh
-48b78ac0144eb70382e46a707f807a40452a6d71d5cba6746a5ff6a638281393  index.html
+cb7df8efde4f75d70d9bb1c401d926eae1dbd35f671a228e99caf7476b4b2ef5  index.html
 "
 # installer-sums: end
 
